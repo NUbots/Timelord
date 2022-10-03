@@ -7,6 +7,61 @@ from datetime import datetime
 def currentDate():
     return datetime.now()
 
+# Time logging form blocks
+logForm = [
+    {
+        # Horizontal line
+        "type": "divider"
+    },
+    {
+        # Date picker
+        "type": "input",
+        "element": {
+            "type": "datepicker",
+            # American format, YYYY:MM:DD
+            "initial_date": currentDate().strftime("%Y-%m-%d"),
+            "placeholder": {
+                "type": "plain_text",
+                "text": "Select a date",
+            },
+            "action_id": "datepicker-action"
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "Date to log",
+        }
+    },
+    {
+        # Hours input
+        "type": "input",
+        "element": {
+            "type": "plain_text_input",
+            "action_id": "plain_text_input-action"
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "Time logged (e.g. 2h, 25m)",
+        }
+    },
+    {
+        # Submit button
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "Click to submit and log hours"
+        },
+        "accessory": {
+            "type": "button",
+            "text": {
+                "type": "plain_text",
+                "text": "Submit",
+            },
+            "value": "placeholder",
+            "action_id": "timelog_submit"
+        }
+    }
+]
+
 # Initialize app with bot token and socket mode handler
 # Bot token is stored as a python virtual environment variable
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
@@ -16,56 +71,6 @@ app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 def repeat_text(ack, respond, command):
     # Acknowledge command request
     ack()
-    # Time logging form blocks
-    logForm = [
-        {
-            "type": "divider"
-        },
-        {
-            "type": "input",
-            "element": {
-                "type": "datepicker",
-                # American format, YYYY:MM:DD
-                "initial_date": currentDate().strftime("%Y-%m-%d"),
-                "placeholder": {
-                    "type": "plain_text",
-                    "text": "Select a date",
-                },
-                "action_id": "datepicker-action"
-            },
-            "label": {
-                "type": "plain_text",
-                "text": "Date to log",
-            }
-        },
-        {
-            "type": "input",
-            "element": {
-                "type": "plain_text_input",
-                "action_id": "plain_text_input-action"
-            },
-            "label": {
-                "type": "plain_text",
-                "text": "Time logged (e.g. 2h, 25m)",
-            }
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "Click to submit and log hours"
-            },
-            "accessory": {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": "Submit",
-                },
-                "value": "placeholder",
-                "action_id": "timelog_submit"
-            }
-        }
-    ]
     respond(
         blocks=logForm
     )
