@@ -16,6 +16,7 @@ logForm = [
     {
         # Date picker
         "type": "input",
+        "block_id": "date_input",
         "element": {
             "type": "datepicker",
             # American format, YYYY:MM:DD
@@ -24,7 +25,7 @@ logForm = [
                 "type": "plain_text",
                 "text": "Select a date",
             },
-            "action_id": "datepicker-action"
+            "action_id": "select_date"
         },
         "label": {
             "type": "plain_text",
@@ -34,9 +35,10 @@ logForm = [
     {
         # Hours input
         "type": "input",
+        "block_id": "hours_input",
         "element": {
             "type": "plain_text_input",
-            "action_id": "plain_text_input-action"
+            "action_id": "select_hours"
         },
         "label": {
             "type": "plain_text",
@@ -75,6 +77,16 @@ def repeat_text(ack, respond, command):
         blocks=logForm
     )
 
+@app.action("timelog_submit")
+def submit_hours(ack, respond, body):
+    ack()
+    # print(body['state']['values']) # Use to show complete list of block elements and their values for testing purposes
+    print("Username: " + body['user']['username'])
+    print("Date: " + body['state']['values']['date_input']['select_date']['selected_date'])
+    print("Time logged: " + body['state']['values']['hours_input']['select_hours']['value'])
+    # print(body['state']['values']['date_input']['datepicker-action']['selected_date'])
+    respond("Submitted!")
+
 # List commands (may need to rename to avoid conflict?)
 @app.command("/help")
 def repeat_text(ack, respond, command):
@@ -89,6 +101,10 @@ def repeat_text(ack, respond, command):
     # Acknowledge command request
     ack()
     respond(f"{command['text']}")
+
+@app.event("message")
+def handle_message_events(body, logger):
+    logger.info(body)
 
 # Open a WebSocket connection with Slack
 if __name__ == "__main__":
