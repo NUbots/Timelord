@@ -38,6 +38,20 @@ def repeat_text(ack, respond, command):
     # maybe this should be a modal popup?
     respond()
 
+# Respond with the total time logged by a user
+@app.command("/totallogged")
+def repeat_text(ack, respond, command):
+    ack()
+    SQLC = database.SQLConnection()
+    username = command['text']
+    SQLC.getTimeSum()
+
+@app.command("/geteverything")
+def repeat_text(ack, respond, command):
+    ack()
+    SQLC = database.SQLConnection()
+    SQLC.getTimeLogTable()
+
 @app.event("message")
 def handle_message_events(body, logger):
     logger.info(body)
