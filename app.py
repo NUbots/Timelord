@@ -44,7 +44,13 @@ def repeat_text(ack, respond, command):
     ack()
     SQLC = database.SQLConnection()
     username = command['text']
-    SQLC.getTimeSum()
+    userDetails = SQLC.getTimeSum(username)
+    print(userDetails)
+    respond(
+        "Username: " + userDetails[0] + "\n"
+        # "User ID: " + userDetails[0] + "\n"
+        "Total minutes logged: " + str(userDetails[1]) + "\n"
+    )
 
 @app.command("/geteverything")
 def repeat_text(ack, respond, command):

@@ -29,6 +29,6 @@ class SQLConnection:
         res = self.cur.execute("SELECT userID, date, minutes FROM timeLog")
         print(res.fetchall())
 
-    def getTimeSum(self):
-        res = self.cur.execute("SELECT userID, SUM(minutes) FROM timeLog GROUP BY userID")
-        print(res.fetchall())
+    def getTimeSum(self, userID):
+        res = self.cur.execute(f"SELECT userID, SUM(minutes) FROM timeLog WHERE userID = '{userID}' GROUP BY userID")
+        return(res.fetchone())
