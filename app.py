@@ -29,10 +29,10 @@ def submit_hours(ack, respond, body):
     print("Date: " + selectedDate)
     print("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
 
-    # minutes = re.findall(r'\d', timeInput)
+    minutes = int(timeInput[0])*60 + int(timeInput[1])
 
     SQLC = database.SQLConnection()
-    SQLC.addTimeLogEntry(username, selectedDate, timeInput[1])
+    SQLC.addTimeLogEntry(username, selectedDate, minutes)
     respond("Submitted!")
 
 # List commands (may need to rename to avoid conflict?)

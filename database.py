@@ -1,5 +1,5 @@
-# Create and connect to database
 import sqlite3
+# Create / connect to database
 con = sqlite3.connect("timelord.db")
 cur = con.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS timeLog(userID, date, minutes)")
