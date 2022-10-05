@@ -5,16 +5,15 @@ cur = con.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS timeLog(userID, date, minutes)")
 con.close()
 
-# Python program to illustrate destructor
 class SQLConnection:
-    # Initializing
     def __init__(self):
+        # Open SQL connection
         self.con = sqlite3.connect("timelord.db")
         self.cur = self.con.cursor()
         print('Connection opened')
 
-    # Deleting (Calling destructor)
     def __del__(self):
+        # Close SQL connection
         print('Connection closed')
         self.con.close()
 

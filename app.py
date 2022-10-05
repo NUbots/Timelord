@@ -1,4 +1,5 @@
 import os
+import re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 import blocks
@@ -19,16 +20,19 @@ def repeat_text(ack, respond, command):
 @app.action("timelog_submit")
 def submit_hours(ack, respond, body):
     ack()
-    # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
+    print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
     username = body['user']['username']
-    selected_date = body['state']['values']['date_input']['select_date']['selected_date']
-    time_logged = body['state']['values']['hours_input']['select_hours']['value']
+    selectedDate = body['state']['values']['date_input']['select_date']['selected_date']
+    timeInput = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value'])
+
     print("Username: " + username)
-    print("Date: " + selected_date)
-    print("Time logged: " + time_logged)
+    print("Date: " + selectedDate)
+    print("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
+
+    # minutes = re.findall(r'\d', timeInput)
 
     SQLC = database.SQLConnection()
-    SQLC.addTimeLogEntry(username, selected_date, time_logged)
+    SQLC.addTimeLogEntry(username, selectedDate, timeInput[1])
     respond("Submitted!")
 
 # List commands (may need to rename to avoid conflict?)
