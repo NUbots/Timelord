@@ -2,12 +2,14 @@ import os
 import re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 import blocks
 import database
 
-# Initialize app with bot token and socket mode handler
-# Bot token is stored as a python virtual environment variable
+# Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
+client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 
 def checkUsernameEntry(SQLC, userID, username = None):
     # Check if database listing for username and ID is correct
@@ -15,6 +17,16 @@ def checkUsernameEntry(SQLC, userID, username = None):
         SQLC.registerUsername(userID, username)
     elif (SQLC.getUsername(userID) != username):
         SQLC.updateUsername(userID, username)
+
+
+def getName(userID):
+    try:
+        userInfo = client.users_info(
+            user=userID
+        )
+        return(userInfo["user"]["real_name"])
+    except SlackApiError as e:
+        print(f"Error fetching conversations: {e}")
 
 # Get time log form
 @app.command("/timelog")
@@ -46,12 +58,12 @@ def handle_some_action(ack, body, respond):
     output = ""
     SQLC = database.SQLConnection()
     for i in users:
+        name = getName(i)
         if (SQLC.userExists(i)):
-            username = SQLC.getUsername(i)
             userTime = SQLC.getTimeSum(i)
-            output += f"{username}: {int(userTime/60)} hours and {userTime%60} minutes\n"
+            output += f"{name}: {int(userTime/60)} hours and {userTime%60} minutes\n"
         else:
-            output += f"{i} has no logged hours\n"
+            output += f"{name} has no logged hours\n"
     respond(
         output
     )
