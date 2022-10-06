@@ -9,13 +9,6 @@ import database
 # Bot token is stored as a python virtual environment variable
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 
-def checkUsernameEntry(SQLC, userID, username = None):
-    # Check if database listing for username and ID is correct
-    if (SQLC.userExists(userID) == False):
-        SQLC.registerUsername(userID, username)
-    elif (SQLC.getUsername(userID) != username):
-        SQLC.updateUsername(userID, username)
-
 # Get time log form
 @app.command("/timelog")
 def timelog(ack, respond, command):
@@ -47,11 +40,10 @@ def handle_some_action(ack, body, respond):
     SQLC = database.SQLConnection()
     for i in users:
         if (SQLC.userExists(i)):
-            username = SQLC.getUsername(i)
             userTime = SQLC.getTimeSum(i)
-            output += f"{username}: {int(userTime/60)} hours and {userTime%60} minutes\n"
+            output += f"{i}: {int(userTime/60)} hours and {userTime%60} minutes\n"
         else:
-            output += f"{i} has no logged hours\n"
+            output += f"{i} has no logged hours"
     respond(
         output
     )
