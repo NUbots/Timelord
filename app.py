@@ -11,14 +11,6 @@ import database
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 
-def checkUsernameEntry(SQLC, userID, username = None):
-    # Check if database listing for username and ID is correct
-    if (SQLC.userExists(userID) == False):
-        SQLC.registerUsername(userID, username)
-    elif (SQLC.getUsername(userID) != username):
-        SQLC.updateUsername(userID, username)
-
-
 def getName(userID):
     try:
         userInfo = client.users_info(
@@ -26,7 +18,7 @@ def getName(userID):
         )
         return(userInfo["user"]["real_name"])
     except SlackApiError as e:
-        print(f"Error fetching conversations: {e}")
+        print(f"Error fetching user info: {e}")
 
 # Get time log form
 @app.command("/timelog")
@@ -44,19 +36,12 @@ def getHours(ack, respond, command):
         blocks=blocks.userSelection
     )
 
-# @app.action("user_select")
-# def submitTimelogForm(ack, respond, body):
-#     ack()
-#     # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
-#     print(body['state']['values'])
-
 @app.action("user_submit")
 def handle_some_action(ack, body, respond):
     ack()
     users = body['state']['values']['user_input']['user_added']['selected_users']
-    print(users)
-    output = ""
     SQLC = database.SQLConnection()
+    output = ""
     for i in users:
         name = getName(i)
         if (SQLC.userExists(i)):
@@ -73,13 +58,11 @@ def handle_some_action(ack, body, respond):
 def submitTimelogForm(ack, respond, body):
     ack()
     # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
-    username = body['user']['username']
     userID = body['user']['id']
     selectedDate = body['state']['values']['date_input']['select_date']['selected_date']
     timeInput = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
 
     print("\nNew Log Entry ⏰ ")
-    print("Username: " + username)
     print("User ID: " + userID)
     print("Date: " + selectedDate)
     print("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
@@ -87,9 +70,7 @@ def submitTimelogForm(ack, respond, body):
     minutes = int(timeInput[0])*60 + int(timeInput[1])
 
     SQLC = database.SQLConnection()
-    # Add time log entry and check user name and ID in database
     SQLC.addTimeLogEntry(userID, selectedDate, minutes)
-    checkUsernameEntry(SQLC, userID, username)
 
     respond("Submitted!")
 
@@ -98,20 +79,6 @@ def submitTimelogForm(ack, respond, body):
 def help(ack, respond, command):
     ack()
     respond()
-
-# Respond with the total time logged by a user
-# @app.command("/totallogged")
-# def repeat_text(ack, respond, command):
-#     ack()
-#     SQLC = database.SQLConnection()
-#     username = command['text']
-#     userDetails = SQLC.getTimeSum(username)
-#     print(userDetails)
-#     respond(
-#         "Username: " + userDetails[0] + "\n"
-#         # "User ID: " + userDetails[0] + "\n"
-#         "Total minutes logged: " + str(userDetails[1]) + "\n"
-#     )
 
 @app.command("/geteverything")
 def repeat_text(ack, respond, command):
@@ -129,6 +96,13 @@ def handle_message_events(body, logger):
 def handle_some_action(ack, body, logger):
     ack()
     logger.info(body)
+
+
+@app.action("select_date")
+def handle_some_action(ack, body, logger):
+    ack()
+    logger.info(body)
+
 
 
 # Open a WebSocket connection with Slack

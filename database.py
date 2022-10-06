@@ -3,7 +3,6 @@ import sqlite3
 con = sqlite3.connect("timelord.db")
 cur = con.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS timeLog(userID string, date, minutes)")
-cur.execute("CREATE TABLE IF NOT EXISTS users(userID, username)")
 con.close()
 
 class SQLConnection:
@@ -24,29 +23,13 @@ class SQLConnection:
         res = self.cur.execute("SELECT * FROM timeLog")
         print(res.fetchall())
 
-    def getUsers(self):
-        res = self.cur.execute("SELECT * FROM users")
-        print(res.fetchall())
-
     def getTimeSum(self, userID):
         res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE userID = '{userID}'")
         return(res.fetchone()[0])
 
     def userExists(self, userID):
-        res = self.cur.execute(f"SELECT * FROM users WHERE userID = '{userID}';")
+        res = self.cur.execute(f"SELECT * FROM timeLog WHERE userID = '{userID}';")
         if(len(res.fetchall()) == 0):
             return False
         else:
             return True
-
-    def registerUsername(self, userID, username):
-        self.cur.execute(f"INSERT INTO users VALUES ('{userID}', '{username}')")
-        self.con.commit()
-    
-    def updateUsername(self, userID, username):
-        self.cur.execute(f"UPDATE users SET username = '{username}' WHERE userID = '{userID}'")
-        self.con.commit()
-
-    def getUsername(self, userID):
-        res = self.cur.execute(f"SELECT username FROM users WHERE userID = '{userID}'")
-        return(res.fetchone()[0])
