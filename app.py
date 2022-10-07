@@ -9,16 +9,24 @@ import database
 
 # Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
-client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
+slackWebClient = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 
+# Get user's full name
 def getName(userID):
     try:
-        userInfo = client.users_info(
-            user=userID
-        )
+        userInfo = slackWebClient.users_info(user=userID)
         return(userInfo["user"]["real_name"])
     except SlackApiError as e:
         print(f"Error fetching user info: {e}")
+
+# Check if user is a Slack admin
+def isAdmin(userID):
+    try:
+        userInfo = slackWebClient.users_info(user=userID)
+        return(userInfo["user"]["is_admin"])
+    except SlackApiError as e:
+        print(f"Error fetching user info: {e}")
+
 
 # Get time log form
 @app.command("/timelog")
@@ -30,11 +38,12 @@ def timelog(ack, respond, command):
 
 # Get admin user request form
 @app.command("/gethours")
-def getHours(ack, respond, command):
+def getHours(ack, respond, body, command):
     ack()
-    respond(
-        blocks=blocks.userSelection
-    )
+    if(isAdmin(body['user_id'])):
+        respond(blocks=blocks.userSelection)
+    else:
+        respond("You must be an admin to use this command!")
 
 @app.action("user_submit")
 def handle_some_action(ack, body, respond):
@@ -46,7 +55,7 @@ def handle_some_action(ack, body, respond):
         name = getName(i)
         if (SQLC.userExists(i)):
             userTime = SQLC.getTimeSum(i)
-            output += f"{name}: {int(userTime/60)} hours and {userTime%60} minutes\n"
+            output += f"{name}: {int(userTime/60)} hours and {int(userTime%60)} minutes\n"
         else:
             output += f"{name} has no logged hours\n"
     respond(
@@ -57,22 +66,27 @@ def handle_some_action(ack, body, respond):
 @app.action("timelog_submit")
 def submitTimelogForm(ack, respond, body):
     ack()
-    # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
+    print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
     userID = body['user']['id']
     selectedDate = body['state']['values']['date_input']['select_date']['selected_date']
     timeInput = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
 
-    print("\nNew Log Entry ⏰ ")
-    print("User ID: " + userID)
-    print("Date: " + selectedDate)
-    print("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
+    try:
+        # # Make this more robust (e.g. check for e)
+        minutes = int(timeInput[0])*60 + int(timeInput[1])
 
-    minutes = int(timeInput[0])*60 + int(timeInput[1])
+        print("\nNew Log Entry ⏰ ")
+        print("User ID: " + userID)
+        print("Date: " + selectedDate)
+        print("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
 
-    SQLC = database.SQLConnection()
-    SQLC.addTimeLogEntry(userID, selectedDate, minutes)
+        SQLC = database.SQLConnection()
+        SQLC.addTimeLogEntry(userID, selectedDate, minutes)
 
-    respond("Submitted!")
+        respond("Time logged: " + timeInput[0] + " hours and " + timeInput[1] + " minutes.")
+    except:
+        respond("*Invalid input!* Please try again!")
+
 
 # List commands (may need to rename to avoid conflict?)
 @app.command("/help")
@@ -85,7 +99,6 @@ def repeat_text(ack, respond, command):
     ack()
     SQLC = database.SQLConnection()
     SQLC.getTimeLogTable()
-    SQLC.getUsers()
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
