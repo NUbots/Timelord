@@ -1,7 +1,7 @@
 import sqlite3
 import datetime
 # Create / connect to database
-con = sqlite3.connect("timelord.db", detect_types=sqlite3.PARSE_DECLTYPES)
+con = sqlite3.connect("timelord.db")
 cur = con.cursor()
 cur.execute("CREATE TABLE IF NOT EXISTS timeLog(userID TEXT NOT NULL, selectedDate date, minutes INTEGER NOT NULL)")
 con.close()
@@ -19,8 +19,8 @@ class SQLConnection:
         self.con.close()
 
     def addTimeLogEntry(self, userID, selectedDate, minutes):
-        self.cur.execute(f"INSERT INTO timeLog VALUES ('{userID}', {selectedDate}, {minutes})")
-        print(type(selectedDate))
+        data = [userID, selectedDate, minutes]
+        self.cur.execute("INSERT INTO timeLog VALUES (?,?,?)", data)
         self.con.commit()
 
     def getTimeLogTable(self):
@@ -32,9 +32,9 @@ class SQLConnection:
         return(res.fetchone()[0])
 
     def getTimeSumAfterDate(self, userID, days):
-        startDate = datetime.date.today() - datetime.timedelta(days=7)
-        print(startDate)
-        res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE userID = '{userID}' BETWEEN {startDate} AND {today}")
+        today = datetime.date.today()
+        startDate = today - datetime.timedelta(days=7)
+        res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE userID = '{userID}' AND selectedDate BETWEEN '{startDate}' AND '{today}'")
         return(res.fetchone()[0])
 
     def userExists(self, userID):

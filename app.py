@@ -50,35 +50,29 @@ def getHours(ack, respond, body, command):
 def handle_some_action(ack, body, respond):
     ack()
     users = body['state']['values']['user_input']['user_added']['selected_users']
+    SQLC = database.SQLConnection()
+    output = ""
     for i in users:
-        SQLC = database.SQLConnection()
-        print (SQLC.getTimeSumAfterDate(i, 7))
-    # users = body['state']['values']['user_input']['user_added']['selected_users']
-    # SQLC = database.SQLConnection()
-    # output = ""
-    # for i in users:
-    #     name = getName(i)
-    #     if (SQLC.userExists(i)):
-    #         userTime = SQLC.getTimeSumAfterDate(i, 7)
-    #         output += f"{name}: {int(userTime/60)} hours and {int(userTime%60)} minutes\n"
-    #     else:
-    #         output += f"{name} has no logged hours\n"
-    # respond(
-    #     output
-    # )
-
+        name = getName(i)
+        if (SQLC.userExists(i)):
+            userTime = SQLC.getTimeSumAfterDate(i, 7)
+            output += f"{name}: {int(userTime/60)} hours and {int(userTime%60)} minutes\n"
+        else:
+            output += f"{name} has no logged hours\n"
+    print("\n" + output)
+    respond(output)
 
 @app.action("timelog_submit")
 def submitTimelogForm(ack, respond, body):
     ack()
     # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
     userID = body['user']['id']
-    # selectedDate = body['state']['values']['date_input']['select_date']['selected_date']
+    # Get user-selected date, hours, and minutes from form
     selectedDate = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
     timeInput = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
 
     try:
-        # # Make this more robust (e.g. check for e)
+        # A better input should be used here if possible
         minutes = int(timeInput[0])*60 + int(timeInput[1])
 
         print("\nNew Log Entry ⏰ ")
@@ -95,17 +89,17 @@ def submitTimelogForm(ack, respond, body):
         respond("*Invalid input!* Please try again!")
 
 
-# List commands (may need to rename to avoid conflict?)
+# List commands (may need to rename to avoid conflict)
 @app.command("/help")
 def help(ack, respond, command):
     ack()
     respond()
 
+# Print entire database to console
 @app.command("/geteverything")
 def repeat_text(ack, respond, command):
     ack()
     SQLC = database.SQLConnection()
-    print(type(SQLC.getTimeLogTable()[0][1]))
     print(SQLC.getTimeLogTable())
 
 # Handle irrelevant messages so they don't show up in logs
@@ -123,8 +117,6 @@ def handle_some_action(ack, body, logger):
 def handle_some_action(ack, body, logger):
     ack()
     logger.info(body)
-
-
 
 # Open a WebSocket connection with Slack
 if __name__ == "__main__":
