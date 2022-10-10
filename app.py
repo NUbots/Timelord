@@ -4,8 +4,6 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime
-import blocks
-import database
 
 # Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
