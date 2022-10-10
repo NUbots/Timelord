@@ -65,35 +65,6 @@ logForm = [
 
 # User selection form
 userSelection = [
-    # {
-    #     "type": "input",
-    #     "element": {
-    #         "type": "multi_users_select",
-    #         "block_id": "user_selection",
-    #         "placeholder": {
-    #             "type": "plain_text",
-    #             "text": "Select users",
-    #         },
-    #         "action_id": "multi_users_select-action"
-    #     },
-    #     "label": {
-    #         "type": "plain_text",
-    #         "text": "Select users to view their total time logged",
-    #     }
-    # },
-    # {
-    #     "type": "actions",
-    #     "elements": [
-    #         {
-    #             "type": "button",
-    #             "text": {
-    #                 "type": "plain_text",
-    #                 "text": "Confirm Selection",
-    #             },
-    #             "action_id": "select_users"
-    #         }
-    #     ]
-    # }
 		{
 			"type": "input",
             "block_id": "user_input",
