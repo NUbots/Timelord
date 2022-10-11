@@ -40,6 +40,13 @@ def get_user_hours_form(ack, respond, body, command):
     else:
         respond("You must be an admin to use this command!")
 
+@app.command("/deletelast")
+def delete_last(ack, respond, body, command):
+    ack()
+    sqlc = database.SQLConnection()
+    sqlc.remove_last_entry(body['user_id'])
+    respond("Last entry removed!")
+
 @app.action("user_submit")
 def get_logged_hours(ack, body, respond, logger):
     ack()
