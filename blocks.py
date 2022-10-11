@@ -7,7 +7,7 @@ def currentDate():
     return datetime.now()
 
 # Time logging form blocks
-logForm = [
+log_form = [
     {
         # Horizontal line
         "type": "divider"
@@ -64,7 +64,7 @@ logForm = [
 ]
 
 # User selection form
-userSelection = [
+user_selection = [
 		{
 			"type": "input",
             "block_id": "user_input",

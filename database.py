@@ -1,12 +1,12 @@
 import sqlite3
 import datetime
-# Create / connect to database
-con = sqlite3.connect("timelord.db")
-cur = con.cursor()
-cur.execute("CREATE TABLE IF NOT EXISTS timeLog(userID TEXT NOT NULL, selectedDate date, minutes INTEGER NOT NULL)")
-con.close()
 
-today = datetime.date.today()
+def createLogTable(DBName):
+    # Create time log table
+    con = sqlite3.connect(DBName)
+    cur = con.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS timeLog(user_id TEXT NOT NULL, selected_date date, minutes INTEGER NOT NULL)")
+    con.close()
 
 class SQLConnection:
     def __init__(self):
@@ -18,35 +18,43 @@ class SQLConnection:
         # Close SQL connection (saving changes to file)
         self.con.close()
 
-    def addTimeLogEntry(self, userID, selectedDate, minutes):
+    def insert_timelog_entry(self, user_id, selected_date, minutes):
         # Dates are stored in plain text - SQLite doesn't have a specific date type. This still works and is sortable as long as
         # dates are stored in the YYYY-MM-DD format (highest to lowest weight)
 
         # SQLite3 documentation says this format should be used rather than formatted strings to prevent sql injection attacks
         # This probably isn't necessary here but there's no good reason not to
-        self.cur.execute("INSERT INTO timeLog VALUES (?,?,?);", (userID, selectedDate, minutes))
+        self.cur.execute("INSERT INTO timeLog VALUES (?,?,?);", (user_id, selected_date, minutes))
         self.con.commit()
 
     # Get the time logged by all users
-    def getTimeLogTable(self):
+    def timelog_table(self):
         res = self.cur.execute("SELECT * FROM timeLog;")
         return(res.fetchall())
 
-    # Get total minutes logged by user with given userID
-    def getTimeSum(self, userID):
-        res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE userID = ?;", (userID,))
-        return(res.fetchone()[0])
+    # Get total minutes logged by user with given user_id
+    def time_sum(self, user_id):
+        # If the user has entries in the database return their total time logged, otherwise return 0
+        if (self.has_entries(user_id)):
+            res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE user_id = ?;", (user_id,))
+            return(res.fetchone()[0])
+        else:
+            return(0)
 
-    # Get total minutes logged by user with given userID within the given number of days of the current date
-    def getTimeSumAfterDate(self, userID, days):
+    # Get total minutes logged by user with given user_id within the given number of days of the current date
+    def time_sum_after_date(self, user_id, days):
         today = datetime.date.today()
         startDate = today - datetime.timedelta(days=7)
-        res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE userID = ? AND selectedDate BETWEEN ? AND ?;", (userID, startDate, today))
-        return(res.fetchone()[0])
+        # If the user has entries in the database return their time logged within the specified period, otherwise return 0
+        if (self.has_entries(user_id)):
+            res = self.cur.execute(f"SELECT SUM(minutes) FROM timeLog WHERE user_id = ? AND selected_date BETWEEN ? AND ?;", (user_id, startDate, today))
+            return(res.fetchone()[0])
+        else:
+            return(0)
 
-    # Check whether the user with given userID has any entries in the time log table
-    def userExists(self, userID):
-        res = self.cur.execute(f"SELECT * FROM timeLog WHERE userID = ?;", (userID,))
+    # Check whether the user with given user_id has any entries in the time log table
+    def has_entries(self, user_id):
+        res = self.cur.execute(f"SELECT * FROM timeLog WHERE user_id = ?;", (user_id,))
         if(len(res.fetchall()) == 0):
             return False
         else:

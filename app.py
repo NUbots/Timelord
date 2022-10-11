@@ -7,81 +7,81 @@ from datetime import datetime
 
 # Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
-slackWebClient = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
+slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
+
+# Create time log table
+database.createLogTable("timelord.db")
+
+# Set up logging for info messages
+logging.basicConfig(level=logging.INFO)
 
 # Get user's full name from slack web client
-def getName(userID):
-    userInfo = slackWebClient.users_info(user=userID)
-    return(userInfo["user"]["real_name"])
+def full_name(user_id):
+    user_info = slack_web_client.users_info(user=user_id)
+    return(user_info["user"]["real_name"])
 
 # Check if user is a Slack admin
-def isAdmin(userID):
-    userInfo = slackWebClient.users_info(user=userID)
-    return(userInfo["user"]["is_admin"])
+def is_admin(user_id):
+    user_info = slack_web_client.users_info(user=user_id)
+    return(user_info["user"]["is_admin"])
 
 # Get time log form
 @app.command("/timelog")
-def timelog(ack, respond, command):
+def time_log(ack, respond, command):
     ack()
-    respond(blocks=blocks.logForm)
+    respond(blocks=blocks.log_form)
 
 # Get admin user request form
 @app.command("/gethours")
-def getHours(ack, respond, body, command):
+def get_user_hours_form(ack, respond, body, command):
     ack()
-    if(isAdmin(body['user_id'])):
-        respond(blocks=blocks.userSelection)
+    if(is_admin(body['user_id'])):
+        respond(blocks=blocks.user_selection)
     else:
         respond("You must be an admin to use this command!")
 
 @app.action("user_submit")
-def handle_some_action(ack, body, respond):
+def get_logged_hours(ack, body, respond, logger):
     ack()
     # Get list of users submitted for query by Slack admin
     users = body['state']['values']['user_input']['user_added']['selected_users']
     # Open an SQL connection
-    SQLC = database.SQLConnection()
+    sqlc = database.SQLConnection()
     output = ""
     # Add the time logged by each user in the last week to the output
     for i in users:
-        name = getName(i)
-        if (SQLC.userExists(i)):
-            # userTime = SQLC.getTimeSumAfterDate(i, 7)     # Print the time logged by the user in the last 7 days to console
-            userTime = SQLC.getTimeSum(i)    # Print the total time logged by the user
-            output += f"{name}: {int(userTime/60)} hours and {int(userTime%60)} minutes\n"
+        name = full_name(i)
+        user_time = sqlc.time_sum(i)
+        if (user_time > 0):
+            output += f"{name}: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
         else:
             output += f"{name} has no logged hours\n"
     # Send output to Slack chat and console
-    print("\n" + output)
+    logger.info("\n" + output)
     respond(output)
 
 @app.action("timelog_submit")
-def submitTimelogForm(ack, respond, body):
+def submit_timelog_form(ack, respond, body, logger):
     ack()
-    # print(body['state']['values']) # Use to show complete list of block elements and their values for development purposes
-    userID = body['user']['id']
-    # print(type(body['state']['values']['date_input']['select_date']['selected_date'])
+    user_id = body['user']['id']
     # Get user-selected date, hours, and minutes from form
-    selectedDate = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
-    timeInput = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
+    selected_date = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
+    time_input = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
 
     try:
-        minutes = int(timeInput[0])*60 + int(timeInput[1])    # user input (hours and minutes) stored as minutes only
+        minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
 
-        print("\nNew Log Entry ⏰ ")
-        print("User ID: " + userID)
-        print("Date: " + str(selectedDate))
-        print(f"Time logged: {timeInput[0]} hours and {timeInput[1]} minutes for date {selectedDate}.")
+        logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
         
         # Open an SQL connection and add entry to database containing user input
-        SQLC = database.SQLConnection()
-        SQLC.addTimeLogEntry(userID, selectedDate, minutes)
+        sqlc = database.SQLConnection()
+        sqlc.insert_timelog_entry(user_id, selected_date, minutes)
 
-        respond(f"Time logged: {timeInput[0]} hours and {timeInput[1]} minutes for date {selectedDate}.")
+        respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
 
     except Exception as e:
         # Show the user an error if they input anything other than two integers seperated by some character / characters
-        print(e)
+        logger.exception("Invalid user input, failed to create time log entry")
         respond("*Invalid input!* Please try again!")
 
 
@@ -93,26 +93,26 @@ def help(ack, respond, command):
 
 # Print entire database to console
 @app.command("/geteverything")
-def repeat_text(ack, respond, command):
+def log_database(ack, respond, command, logger):
     ack()
     # Open SQL connection and print full time log table to console
-    SQLC = database.SQLConnection()
-    print(SQLC.getTimeLogTable())
+    sqlc = database.SQLConnection()
+    logger.info(sqlc.timelog_table())
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
-def handle_message_events(body, logger):
-    logger.info(body)
+def message_event(body, logger):
+    logger.debug(body)
 
 @app.action("user_added")
-def handle_some_action(ack, body, logger):
+def user_added_in_slack_input(ack, body, logger):
     ack()
-    logger.info(body)
+    logger.debug(body)
 
 @app.action("select_date")
-def handle_some_action(ack, body, logger):
+def select_date(ack, body, logger):
     ack()
-    logger.info(body)
+    logger.debug(body)
 
 # Open a WebSocket connection with Slack
 if __name__ == "__main__":
