@@ -18,7 +18,7 @@ log_form = [
         "block_id": "date_input",
         "element": {
             "type": "datepicker",
-            # American format, YYYY:MM:DD
+            # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings - in this format lexicographical order is identical to chronological order.
             "initial_date": currentDate().strftime("%Y-%m-%d"),
             "placeholder": {
                 "type": "plain_text",
