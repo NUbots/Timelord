@@ -1,9 +1,9 @@
 import sqlite3
 import datetime
 
-def createLogTable(DBName):
+def createLogTable():
     # Create time log table
-    con = sqlite3.connect(DBName)
+    con = sqlite3.connect("timelord.db")
     cur = con.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS time_log(user_id TEXT NOT NULL, selected_date date, minutes INTEGER NOT NULL)")
     con.close()
