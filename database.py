@@ -35,9 +35,11 @@ class SQLConnection:
     # Get total minutes logged by user with given user_id
     def time_sum(self, user_id):
         # If the user has entries in the database return their total time logged, otherwise return 0
-        if (self.has_entries(user_id)):
-            res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ?;", (user_id,))
-            return(res.fetchone()[0])
+        res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ?;", (user_id,))
+        minutes = res.fetchone()[0]
+        print(minutes)
+        if (minutes != None):
+            return(minutes)
         else:
             return(0)
 
@@ -46,16 +48,10 @@ class SQLConnection:
         today = datetime.date.today()
         startDate = today - datetime.timedelta(days=7)
         # If the user has entries in the database return their time logged within the specified period, otherwise return 0
-        if (self.has_entries(user_id)):
-            res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ? AND selected_date BETWEEN ? AND ?;", (user_id, startDate, today))
-            return(res.fetchone()[0])
+        res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ? AND selected_date BETWEEN ? AND ?;", (user_id, startDate, today))
+        minutes = res.fetchone()[0]
+        print(minutes)
+        if (minutes != None):
+            return(minutes)
         else:
             return(0)
-
-    # Check whether the user with given user_id has any entries in the time log table
-    def has_entries(self, user_id):
-        res = self.cur.execute(f"SELECT * FROM time_log WHERE user_id = ?;", (user_id,))
-        if(len(res.fetchall()) == 0):
-            return False
-        else:
-            return True
