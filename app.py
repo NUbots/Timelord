@@ -111,8 +111,8 @@ def select_date(ack, body, logger):
     ack()
     logger.debug(body)
 
-# Open a WebSocket connection with Slack
 if __name__ == "__main__":
-    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
     # Create time log table
     database.createLogTable()
+    # Open a WebSocket connection with Slack
+    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()

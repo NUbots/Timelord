@@ -1,9 +1,11 @@
 import sqlite3
 import datetime
 
+db_file = "timelord.db"
+
 def createLogTable():
     # Create time log table
-    con = sqlite3.connect("timelord.db")
+    con = sqlite3.connect(db_file)
     cur = con.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS time_log(user_id TEXT NOT NULL, selected_date date, minutes INTEGER NOT NULL)")
     con.close()
@@ -11,7 +13,7 @@ def createLogTable():
 class SQLConnection:
     def __init__(self):
         # Open SQL connection
-        self.con = sqlite3.connect("timelord.db")
+        self.con = sqlite3.connect(db_file)
         self.cur = self.con.cursor()
 
     def __del__(self):
