@@ -39,7 +39,6 @@ class SQLConnection:
         # If the user has entries in the database return their total time logged, otherwise return 0
         res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ?;", (user_id,))
         minutes = res.fetchone()[0]
-        print(minutes)
         if (minutes != None):
             return(minutes)
         else:
@@ -52,7 +51,6 @@ class SQLConnection:
         # If the user has entries in the database return their time logged within the specified period, otherwise return 0
         res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ? AND selected_date BETWEEN ? AND ?;", (user_id, startDate, today))
         minutes = res.fetchone()[0]
-        print(minutes)
         if (minutes != None):
             return(minutes)
         else:
