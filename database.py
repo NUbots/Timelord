@@ -7,7 +7,15 @@ def createLogTable():
     # Create time log table
     con = sqlite3.connect(db_file)
     cur = con.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS time_log(entry_num INTEGER NOT NULL, user_id TEXT NOT NULL, entry_date date NOT NULL, selected_date date NOT NULL, minutes INTEGER NOT NULL, project TEXT)")
+    cur.execute("""CREATE TABLE IF NOT EXISTS time_log(
+                        entry_num INTEGER NOT NULL,
+                        user_id TEXT NOT NULL,
+                        entry_date date NOT NULL,
+                        selected_date date NOT NULL,
+                        minutes INTEGER NOT NULL,
+                        project TEXT,
+
+                        PRIMARY KEY (entry_num, user_id));""")
     con.close()
 
 class SQLConnection:
