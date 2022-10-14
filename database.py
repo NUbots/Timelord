@@ -26,7 +26,7 @@ class SQLConnection:
         # SQLite3 documentation says this format with placeholder question marks and a tuple of values should be used rather than formatted strings to prevent sql injection attacks
         # This probably isn't necessary here but there's no good reason not to
 
-        today = datetime.date.today()
+        today = datetime.date.today().strftime('%Y-%m-%d')
 
         res = self.cur.execute("SELECT MAX(entry_num) FROM time_log WHERE user_id = ?;", (user_id,))
         entry_num = res.fetchone()[0]
@@ -35,11 +35,9 @@ class SQLConnection:
         else:
             entry_num += 1
 
-        self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL);", (entry_num, user_id, selected_date, minutes, today))
+        self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL);", (entry_num, user_id, today, selected_date, minutes ))
 
     def remove_last_entry(self, user_id):
-        res = self.cur.execute("SELECT user_id, entry_num FROM time_log WHERE user_id = ? ORDER BY entry_num DESC LIMIT 1;", (user_id,))
-        print(res.fetchall())
         # Limit isn't allowed in SQLite delete commands by default. It can be enabled when compiling sqlite from source but isn't in the standard Python package used here so a select subquery is used instead.
         self.cur.execute("DELETE FROM time_log WHERE (user_id, entry_num) IN (SELECT user_id, entry_num FROM time_log WHERE user_id = ? ORDER BY entry_num DESC LIMIT 1);", (user_id,))
 
@@ -59,7 +57,7 @@ class SQLConnection:
 
     # Get total minutes logged by user with given user_id within the given number of days of the current date
     def time_sum_after_date(self, user_id, days):
-        today = datetime.date.today()
+        today = datetime.date.today().strftime('%Y-%m-%d')
         startDate = today - datetime.timedelta(days=7)
         # If the user has entries in the database return their time logged within the specified period, otherwise return 0
         if (self.has_entries(user_id)):
