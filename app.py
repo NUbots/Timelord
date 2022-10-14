@@ -9,9 +9,6 @@ from datetime import datetime
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 
-# Create time log table
-database.createLogTable("timelord.db")
-
 # Set up logging for info messages
 logging.basicConfig(level=logging.INFO)
 
@@ -121,6 +118,8 @@ def select_date(ack, body, logger):
     ack()
     logger.debug(body)
 
-# Open a WebSocket connection with Slack
 if __name__ == "__main__":
+    # Create time log table
+    database.createLogTable()
+    # Open a WebSocket connection with Slack
     SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()

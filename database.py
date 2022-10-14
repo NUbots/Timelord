@@ -1,9 +1,11 @@
 import sqlite3
 import datetime
 
-def createLogTable(DBName):
+db_file = "timelord.db"
+
+def createLogTable():
     # Create time log table
-    con = sqlite3.connect(DBName)
+    con = sqlite3.connect(db_file)
     cur = con.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS time_log(entry_num INTEGER NOT NULL, user_id TEXT NOT NULL, entry_date date NOT NULL, selected_date date NOT NULL, minutes INTEGER NOT NULL, project TEXT)")
     con.close()
@@ -11,7 +13,7 @@ def createLogTable(DBName):
 class SQLConnection:
     def __init__(self):
         # Open SQL connection
-        self.con = sqlite3.connect("timelord.db")
+        self.con = sqlite3.connect(db_file)
         self.cur = self.con.cursor()
 
     def __del__(self):
@@ -25,7 +27,7 @@ class SQLConnection:
 
         # SQLite3 documentation says this format with placeholder question marks and a tuple of values should be used rather than formatted strings to prevent sql injection attacks
         # This probably isn't necessary here but there's no good reason not to
-
+        
         today = datetime.date.today().strftime('%Y-%m-%d')
 
         res = self.cur.execute("SELECT MAX(entry_num) FROM time_log WHERE user_id = ?;", (user_id,))
@@ -49,9 +51,10 @@ class SQLConnection:
     # Get total minutes logged by user with given user_id
     def time_sum(self, user_id):
         # If the user has entries in the database return their total time logged, otherwise return 0
-        if (self.has_entries(user_id)):
-            res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ?;", (user_id,))
-            return(res.fetchone()[0])
+        res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ?;", (user_id,))
+        minutes = res.fetchone()[0]
+        if (minutes != None):
+            return(minutes)
         else:
             return(0)
 
@@ -60,16 +63,9 @@ class SQLConnection:
         today = datetime.date.today().strftime('%Y-%m-%d')
         startDate = today - datetime.timedelta(days=7)
         # If the user has entries in the database return their time logged within the specified period, otherwise return 0
-        if (self.has_entries(user_id)):
-            res = self.cur.execute(f"SELECT SUM(minutes) FROM time_log WHERE user_id = ? AND selected_date BETWEEN ? AND ?;", (user_id, startDate, today))
-            return(res.fetchone()[0])
+        minutes = res.fetchone()[0]
+        if (minutes != None):
+            return(minutes)
         else:
             return(0)
 
-    # Check whether the user with given user_id has any entries in the time log table
-    def has_entries(self, user_id):
-        res = self.cur.execute(f"SELECT * FROM time_log WHERE user_id = ?;", (user_id,))
-        if(len(res.fetchall()) == 0):
-            return False
-        else:
-            return True
