@@ -22,6 +22,9 @@ def is_admin(user_id):
     user_info = slack_web_client.users_info(user=user_id)
     return(user_info["user"]["is_admin"])
 
+def slack_table(title, message):
+    return(f"*{title}*\n```{message}```")
+
 # Get time log form
 @app.command("/timelog")
 def time_log(ack, respond, command):
@@ -95,13 +98,31 @@ def help(ack, respond, command):
     ack()
     respond()
 
+@app.command("/myentries")
+def user_entries(ack, respond, body, command, logger):
+    ack()
+
+    user_id = body['user_id']
+    name = full_name(user_id)
+    num_entries = int(command['text'])
+
+    sqlc = database.SQLConnection()
+    table = sqlc.last_entries_table(user_id, num_entries)
+
+    respond(slack_table(f"{num_entries} most recent entries by {name}", table))
+
 # Print entire database to console
 @app.command("/geteverything")
 def log_database(ack, respond, command, logger):
     ack()
     # Open SQL connection and print full time log table to console
     sqlc = database.SQLConnection()
-    logger.info(sqlc.timelog_table())
+    table = sqlc.timelog_table()
+    logger.info(table)
+    # Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
+    respond("```" + table + "```")
+    # sqlc.user_logged_table()
+    # respond(sqlc.user_logged_table())
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
