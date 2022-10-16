@@ -22,6 +22,7 @@ def is_admin(user_id):
     user_info = slack_web_client.users_info(user=user_id)
     return(user_info["user"]["is_admin"])
 
+# Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
 def slack_table(title, message):
     return(f"*{title}*\n```{message}```")
 
@@ -115,14 +116,10 @@ def user_entries(ack, respond, body, command, logger):
 @app.command("/geteverything")
 def log_database(ack, respond, command, logger):
     ack()
-    # Open SQL connection and print full time log table to console
     sqlc = database.SQLConnection()
     table = sqlc.timelog_table()
     logger.info(table)
-    # Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
-    respond("```" + table + "```")
-    # sqlc.user_logged_table()
-    # respond(sqlc.user_logged_table())
+    respond(slack_table("All Entries", table))
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
