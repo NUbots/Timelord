@@ -48,9 +48,6 @@ class SQLConnection:
 
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL);", (entry_num, user_id, today, selected_date, minutes ))
 
-    # def user_logged_table():
-    #     print(tabulate(timelog_table))
-
     def remove_last_entry(self, user_id):
         # Limit isn't allowed in SQLite delete commands by default. It can be enabled when compiling sqlite from source but isn't in the standard Python package used here so a select subquery is used instead.
         self.cur.execute("DELETE FROM time_log WHERE (user_id, entry_num) IN (SELECT user_id, entry_num FROM time_log WHERE user_id = ? ORDER BY entry_num DESC LIMIT 1);", (user_id,))
@@ -87,4 +84,3 @@ class SQLConnection:
             return(minutes)
         else:
             return(0)
-

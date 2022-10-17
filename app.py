@@ -102,10 +102,13 @@ def help(ack, respond, command):
 @app.command("/myentries")
 def user_entries(ack, respond, body, command, logger):
     ack()
-
-    user_id = body['user_id']
-    name = full_name(user_id)
-    num_entries = int(command['text'])
+    try:
+        user_id = body['user_id']
+        name = full_name(user_id)
+        num_entries = int(command['text'])
+    except Exception as e:
+        logger.exception("Invalid user input, failed to create time log entry")
+        respond("*Invalid input!* Please try again! You can generate a table with your last n entries with /myentries n")
 
     sqlc = database.SQLConnection()
     table = sqlc.last_entries_table(user_id, num_entries)
@@ -113,13 +116,18 @@ def user_entries(ack, respond, body, command, logger):
     respond(slack_table(f"{num_entries} most recent entries by {name}", table))
 
 # Print entire database to console
-@app.command("/geteverything")
+@app.command("/getallentries")
 def log_database(ack, respond, command, logger):
     ack()
-    sqlc = database.SQLConnection()
-    table = sqlc.timelog_table()
-    logger.info(table)
-    respond(slack_table("All Entries", table))
+    if(is_admin(body['user_id'])):
+        sqlc = database.SQLConnection()
+        table = sqlc.timelog_table()
+
+        logger.info("\n" + table)
+        respond(slack_table("All Entries", table))
+    else:
+        respond("You must be an admin to use this command!")
+
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
