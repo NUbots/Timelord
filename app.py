@@ -4,6 +4,12 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime
+from dotenv import load_dotenv
+from pathlib import Path
+
+dotenv_path = Path(".env")
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path)
 
 # Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
