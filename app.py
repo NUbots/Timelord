@@ -128,13 +128,15 @@ def submit_timelog_form(ack, respond, body, logger):
 
 # List commands (may need to rename to avoid conflict)
 @app.command("/help")
-def help(ack, respond, command):
+def help(ack, respond, body, command):
     ack()
     output = """
     \n*User Commands:*
     */timelog* Opens a time logging form
     */deletelast* Delete your last entry
-    */myentries n* Get a table with your last n entries
+    */myentries n* Get a table with your last n entries"""
+    if(is_admin(body['user_id'])):
+        output += """
     \n*Admin Commands:*
     */gethours* Select users and get their total hours logged
     */getusertables* Select users to see their last few entries
