@@ -26,6 +26,12 @@ def is_admin(user_id):
 def slack_table(title, message):
     return(f"*{title}*\n```{message}```")
 
+def validate_all_users():
+    user_list = slack_web_client.users_list()
+    sqlc = database.SQLConnection()
+    for user in user_list["members"]:
+        sqlc.register_user(user["id"], user["real_name"])
+
 # Get time log form
 @app.command("/timelog")
 def time_log(ack, respond, command):
@@ -146,6 +152,8 @@ def select_date(ack, body, logger):
 
 if __name__ == "__main__":
     # Create time log table
-    database.createLogTable()
+    database.create_log_table()
+    # Check all users in workspace against users in database
+    validate_all_users()
     # Open a WebSocket connection with Slack
     SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()

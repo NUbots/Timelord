@@ -4,7 +4,7 @@ from tabulate import tabulate
 
 db_file = "timelord.db"
 
-def createLogTable():
+def create_log_table():
     # Create time log table
     con = sqlite3.connect(db_file)
     cur = con.cursor()
@@ -18,6 +18,20 @@ def createLogTable():
 
                         PRIMARY KEY (entry_num, user_id));""")
     con.close()
+
+def create_user_name_table():
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+    cur.execute("""CREATE TABLE IF NOT EXISTS user_names(
+                        name TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+
+                        PRIMARY KEY (entry_num, user_id));""")
+
+def validate_user(user_id, name):
+    con = sqlite3.connect(db_file)
+    cur = con.cursor()
+    cur.execute("INSERT INTO user_names (user_id, name) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?;", (user_id, name, name))
 
 class SQLConnection:
     def __init__(self):
