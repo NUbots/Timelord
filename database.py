@@ -54,7 +54,7 @@ class SQLConnection:
 
     # Get all entries by all users
     def timelog_table(self):
-        res = self.cur.execute("SELECT * FROM time_log;")
+        res = self.cur.execute("SELECT * FROM time_log LIMIT 30;")
         header = ["Entry Number", "User ID", "Date Submitted", "Date of Log", "Minutes", "Project"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
