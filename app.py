@@ -149,11 +149,7 @@ def user_entries(ack, respond, body, command, logger):
     try:
         user_id = body['user_id']
         name = full_name(user_id)
-        argument = command['text']
-        if argument == "":
-            num_entries = 5
-        else:
-            num_entries = int(argument)
+        num_entries = int(command['text']) if command['text'] != "" else 5
     except:
         logger.exception("Invalid user input, failed to create time log entry")
         respond("*Invalid input!* Please try again! You can generate a table with your last n entries with `/myentries n`. If you leave n blank a default value of 5 will be used.")
