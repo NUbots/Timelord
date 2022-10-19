@@ -4,6 +4,12 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from datetime import datetime
+from dotenv import load_dotenv
+from pathlib import Path
+
+dotenv_path = Path(".env")
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path)
 
 # Initialize Slack app and web client with bot token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
@@ -43,7 +49,7 @@ def time_log(ack, respond, command):
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.user_selection)
+        respond(blocks=blocks.user_hours_selection)
     else:
         respond("You must be an admin to use this command!")
 
@@ -54,7 +60,7 @@ def delete_last(ack, respond, body, command):
     sqlc.remove_last_entry(body['user_id'])
     respond("Last entry removed!")
 
-@app.action("user_submit")
+@app.action("get_user_hours")
 def get_logged_hours(ack, body, respond, logger):
     ack()
     # Get list of users submitted for query by Slack admin
@@ -72,6 +78,33 @@ def get_logged_hours(ack, body, respond, logger):
             output += f"{name} has no logged hours\n"
     # Send output to Slack chat and console
     logger.info("\n" + output)
+    respond(output)
+
+# Get time log tables for selected users form
+@app.command("/getusertables")
+def get_user_hours_form(ack, respond, body, command):
+    ack()
+    if(is_admin(body['user_id'])):
+        respond(blocks=blocks.user_table_selection)
+    else:
+        respond("You must be an admin to use this command!")
+
+@app.action("get_user_table")
+def get_logged_hours(ack, body, respond, logger):
+    ack()
+    users = body['state']['values']['user_input']['user_added']['selected_users']
+    try:
+        num_entries = re.findall(r'\d+', body['state']['values']['num_entries']['select_num_entries']['value'])[0]
+    except:
+        respond('Invalid input! Please try again.')
+    
+    sqlc = database.SQLConnection()
+    output = ""
+    for user in users:
+        name = full_name(user)
+        table = sqlc.last_entries_table(user, num_entries)
+        output += slack_table(f"{num_entries} most recent entries by {name}", table) + "\n"
+
     respond(output)
 
 @app.action("timelog_submit")
@@ -101,9 +134,20 @@ def submit_timelog_form(ack, respond, body, logger):
 
 # List commands (may need to rename to avoid conflict)
 @app.command("/help")
-def help(ack, respond, command):
+def help(ack, respond, body, command):
     ack()
-    respond()
+    output = """
+    \n*User Commands:*
+    */timelog* Opens a time logging form
+    */deletelast* Delete your last entry
+    */myentries n* Get a table with your last n entries"""
+    if(is_admin(body['user_id'])):
+        output += """
+    \n*Admin Commands:*
+    */gethours* Select users and get their total hours logged
+    */getusertables* Select users to see their last few entries
+    */allusertable* Responds with the last 30 entries from all users"""
+    respond(output)
 
 @app.command("/myentries")
 def user_entries(ack, respond, body, command, logger):
@@ -112,7 +156,7 @@ def user_entries(ack, respond, body, command, logger):
         user_id = body['user_id']
         name = full_name(user_id)
         num_entries = int(command['text'])
-    except Exception as e:
+    except:
         logger.exception("Invalid user input, failed to create time log entry")
         respond("*Invalid input!* Please try again! You can generate a table with your last n entries with /myentries n")
 
@@ -122,15 +166,15 @@ def user_entries(ack, respond, body, command, logger):
     respond(slack_table(f"{num_entries} most recent entries by {name}", table))
 
 # Print entire database to console
-@app.command("/getallentries")
-def log_database(ack, respond, command, logger):
+@app.command("/allusertable")
+def log_database(ack, body, respond, command, logger):
     ack()
     if(is_admin(body['user_id'])):
         sqlc = database.SQLConnection()
         table = sqlc.timelog_table()
 
         logger.info("\n" + table)
-        respond(slack_table("All Entries", table))
+        respond(slack_table("Last 30 entries from all users", table))
     else:
         respond("You must be an admin to use this command!")
 

@@ -63,8 +63,8 @@ log_form = [
     }
 ]
 
-# User selection form
-user_selection = [
+# User selection form for hour sum
+user_hours_selection = [
 		{
 			"type": "input",
             "block_id": "user_input",
@@ -90,8 +90,54 @@ user_selection = [
 						"type": "plain_text",
 						"text": "Confirm Selection",
 					},
-					"action_id": "user_submit"
+					"action_id": "get_user_hours"
 				}
+			]
+		}
+]
+
+# User selection form for table
+user_table_selection = [
+		{
+			"type": "input",
+            "block_id": "user_input",
+			"element": {
+				"type": "multi_users_select",
+				"placeholder": {
+					"type": "plain_text",
+					"text": "Select users",
+				},
+				"action_id": "user_added"
+			},
+			"label": {
+				"type": "plain_text",
+				"text": "Select users to their last n entries as a table",
+			}
+		},
+        {
+            # Number of entries
+            "type": "input",
+            "block_id": "num_entries",
+            "element": {
+                "type": "plain_text_input",
+                "action_id": "select_num_entries"
+            },
+            "label": {
+                "type": "plain_text",
+                "text": "Number of entries to return for each user",
+            }
+        },
+		{
+			"type": "actions",
+			"elements": [
+				{
+					"type": "button",
+					"text": {
+						"type": "plain_text",
+						"text": "Confirm Selection",
+					},
+					"action_id": "get_user_table"
+				},
 			]
 		}
 ]
