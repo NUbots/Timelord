@@ -19,14 +19,14 @@ def create_log_table():
                         PRIMARY KEY (entry_num, user_id));""")
     con.close()
 
-def create_user_name_table():
+def create_user_table():
     con = sqlite3.connect(db_file)
     cur = con.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS user_names(
                         name TEXT NOT NULL,
                         user_id TEXT NOT NULL,
 
-                        PRIMARY KEY (entry_num, user_id));""")
+                        PRIMARY KEY (user_id));""")
 
 
 class SQLConnection:
@@ -63,6 +63,11 @@ class SQLConnection:
 
     def remove_last_entry(self, user_id):
         self.cur.execute("DELETE FROM time_log WHERE (user_id, entry_num) IN (SELECT user_id, entry_num FROM time_log WHERE user_id = ? ORDER BY entry_num DESC LIMIT 1);", (user_id,))
+
+    def user_table(self):
+        res = self.cur.execute("SELECT * FROM user_names LIMIT 30;")
+        header = ["User ID", "Name"]
+        return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get all entries by all users
     def timelog_table(self):

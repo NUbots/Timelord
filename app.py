@@ -174,18 +174,21 @@ def log_database(ack, body, respond, command, logger):
         table = sqlc.timelog_table()
 
         logger.info("\n" + table)
-        respond(slack_table("Last 30 entries from all users", table))
+        respond(slack_table("Last 30 entries from all users", table) + slack_table("users", sqlc.user_table()))
     else:
         respond("You must be an admin to use this command!")
 
 @app.event("user_change")
-def user_update_info(event):
-    print(event["user"]["id"])
-    print(event["user"]["profile"]["real_name"])
-
+def update_user_info(event, logger):
     sqlc = database.SQLConnection()
-    sqlc.validate_user()
+    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"])
+    logger.info("Updated name for " + event["user"]["profile"]["real_name"])
 
+@app.event("team_join")
+def add_user(event, logger):
+    sqlc = database.SQLConnection()
+    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"])
+    logger.info("New user: " + event["user"]["profile"]["real_name"])
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
@@ -203,8 +206,9 @@ def select_date(ack, body, logger):
     logger.debug(body)
 
 if __name__ == "__main__":
-    # Create time log table
+    # Create tables
     database.create_log_table()
+    database.create_user_table()
     # Check all users in workspace against users in database
     validate_all_users()
     # Open a WebSocket connection with Slack
