@@ -134,7 +134,7 @@ def help(ack, respond, body, command):
     \n*User Commands:*
     */timelog* Opens a time logging form
     */deletelast* Delete your last entry
-    */myentries n* Get a table with your last n entries"""
+    */myentries n* Get a table with your last n entries (or leave n blank to see your last 5 entries)"""
     if(is_admin(body['user_id'])):
         output += """
     \n*Admin Commands:*
@@ -149,10 +149,10 @@ def user_entries(ack, respond, body, command, logger):
     try:
         user_id = body['user_id']
         name = full_name(user_id)
-        num_entries = int(command['text'])
+        num_entries = int(command['text']) if command['text'] != "" else 5
     except:
         logger.exception("Invalid user input, failed to create time log entry")
-        respond("*Invalid input!* Please try again! You can generate a table with your last n entries with /myentries n")
+        respond("*Invalid input!* Please try again! You can generate a table with your last n entries with `/myentries n`. If you leave n blank a default value of 5 will be used.")
 
     sqlc = database.SQLConnection()
     table = sqlc.last_entries_table(user_id, num_entries)
