@@ -28,10 +28,6 @@ def create_user_name_table():
 
                         PRIMARY KEY (entry_num, user_id));""")
 
-def validate_user(user_id, name):
-    con = sqlite3.connect(db_file)
-    cur = con.cursor()
-    cur.execute("INSERT INTO user_names (user_id, name) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?;", (user_id, name, name))
 
 class SQLConnection:
     def __init__(self):
@@ -43,6 +39,9 @@ class SQLConnection:
         # Close SQL connection (saving changes to file)
         self.con.commit()
         self.con.close()
+
+    def validate_user(self, user_id, name):
+        self.cur.execute("INSERT INTO user_names (user_id, name) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?;", (user_id, name, name))
 
     def insert_timelog_entry(self, user_id, selected_date, minutes):
         # Dates are stored in plain text - SQLite doesn't have a specific date type. This still works and is sortable as long as

@@ -36,7 +36,7 @@ def validate_all_users():
     user_list = slack_web_client.users_list()
     sqlc = database.SQLConnection()
     for user in user_list["members"]:
-        sqlc.register_user(user["id"], user["real_name"])
+        sqlc.validate_user(user["id"], user["profile"]["real_name"])
 
 # Get time log form
 @app.command("/timelog")
@@ -177,6 +177,14 @@ def log_database(ack, body, respond, command, logger):
         respond(slack_table("Last 30 entries from all users", table))
     else:
         respond("You must be an admin to use this command!")
+
+@app.event("user_change")
+def user_update_info(event):
+    print(event["user"]["id"])
+    print(event["user"]["profile"]["real_name"])
+
+    sqlc = database.SQLConnection()
+    sqlc.validate_user()
 
 
 # Handle irrelevant messages so they don't show up in logs
