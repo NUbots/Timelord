@@ -41,13 +41,17 @@ class SQLConnection:
         self.con.commit()
         self.con.close()
 
+    # Validate user info from slack client against internal user entry
     def validate_user(self, user_id, name, display_name):
         self.cur.execute("INSERT INTO user_names (user_id, name, display_name) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=?;", (user_id, name, display_name, name, display_name))
 
+    # Get user's full name and custom display name from database
     def user_name(self, user_id):
         res = self.cur.execute("SELECT name, display_name FROM user_names WHERE user_id = ?", (user_id,))
+        # user is a tuple containing the users real name and a custom display name if applicable (otherwise an empty string)
         user = res.fetchone()
         name = user[0]
+        # Add custom display name if applicable
         if user[1] != "": name += " ("+user[1]+")"
         return(name)
 
@@ -71,11 +75,6 @@ class SQLConnection:
 
     def remove_last_entry(self, user_id):
         self.cur.execute("DELETE FROM time_log WHERE (user_id, entry_num) IN (SELECT user_id, entry_num FROM time_log WHERE user_id = ? ORDER BY entry_num DESC LIMIT 1);", (user_id,))
-
-    def user_table(self):
-        res = self.cur.execute("SELECT * FROM user_names LIMIT 30;")
-        header = ["User ID", "Name"]
-        return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get all entries by all users
     def timelog_table(self):
@@ -116,7 +115,8 @@ class SQLConnection:
         else:
             return(0)
 
+    # Get the top 10 contributors
     def leaderboard(self):
-        # Returns a tuple containing the name of the user and the number of minutes logged
-        res = self.cur.execute(f"select u.name, u.display_name, sum(tl.minutes) as totalMinutes from user_names u INNER JOIN time_log tl ON u.user_id=tl.user_id GROUP BY u.name, u.user_id, u.display_name ORDER BY totalMinutes DESC;")
+        # Returns a tuple of tuples containing the name of the user, a custom dispay name (or empty string), and the number of minutes logged
+        res = self.cur.execute(f"select u.name, u.display_name, sum(tl.minutes) as totalMinutes from user_names u INNER JOIN time_log tl ON u.user_id=tl.user_id GROUP BY u.name, u.user_id, u.display_name ORDER BY totalMinutes DESC LIMIT 10;")
         return(res.fetchall())

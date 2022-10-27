@@ -18,7 +18,7 @@ slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 # Set up logging for info messages
 logging.basicConfig(level=logging.INFO)
 
-# Get user's full name from slack web client
+# Get user's full name and custom display name (if applicable) from database
 def user_name(user_id):
     sqlc = database.SQLConnection()
     return(sqlc.user_name(user_id))
@@ -32,6 +32,7 @@ def is_admin(user_id):
 def slack_table(title, message):
     return(f"*{title}*\n```{message}```")
 
+# Check all usernames and custom display names in the database against info retrieved from slack web client
 def validate_all_users():
     user_list = slack_web_client.users_list()
     sqlc = database.SQLConnection()
@@ -89,7 +90,7 @@ def get_logged_hours(ack, body, respond, logger):
     # Add the time logged by each user to the output
     for user in user_sum:
         # Add a custom display name if the user has one set
-        display_name = " ("+user[1]+")" if user[1] != "" else ""
+        if user[1] != "": display_name = " ("+user[1]+")"
         output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
     # Send output to Slack chat and console
     logger.info("\n" + output)
@@ -163,7 +164,7 @@ def help(ack, respond, body, command):
     */allusersums* Get the total hours logged by all users
     */getusertables* Select users to see their last few entries
     */allusertable* Responds with the last 30 entries from all users
-    */leaderboard* Responds with the top 5 contributors and their total time logged"""
+    */leaderboard* Responds with the top 10 contributors and their total time logged"""
     respond(output)
 
 @app.command("/myentries")
@@ -200,18 +201,22 @@ def leaderboard(ack, body, respond):
     ack()
     sqlc = database.SQLConnection()
     contributions = sqlc.leaderboard()
-    output = "*Top 5 contributors this week*\n"
+    output = "*Top 10 contributors this week*\n"
     for i in contributions:
-        display_name = " ("+i[1]+")" if i[1] != "" else ""
-        output += f"{i[0]}{display_name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+        # Add custom display name if applicable
+        name = i[0]
+        if i[1] != "": name += " ("+i[1]+")"
+        output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
     respond(output)
 
+# Update users real name and custom display name in database when a user changes this info through slack
 @app.event("user_change")
 def update_user_info(event, logger):
     sqlc = database.SQLConnection()
     sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"], event["user"]["profile"]["display_name"])
     logger.info("Updated name for " + event["user"]["profile"]["real_name"])
 
+# Update users real name and custom display name in database when a new user joins the slack workspace
 @app.event("team_join")
 def add_user(event, logger):
     sqlc = database.SQLConnection()
