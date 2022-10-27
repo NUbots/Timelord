@@ -23,8 +23,9 @@ def create_user_table():
     con = sqlite3.connect(db_file)
     cur = con.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS user_names(
-                        name TEXT NOT NULL,
                         user_id TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        display_name TEXT,
 
                         PRIMARY KEY (user_id));""")
 
@@ -40,8 +41,15 @@ class SQLConnection:
         self.con.commit()
         self.con.close()
 
-    def validate_user(self, user_id, name):
-        self.cur.execute("INSERT INTO user_names (user_id, name) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?;", (user_id, name, name))
+    def validate_user(self, user_id, name, display_name):
+        self.cur.execute("INSERT INTO user_names (user_id, name, display_name) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=?;", (user_id, name, display_name, name, display_name))
+
+    def user_name(self, user_id):
+        res = self.cur.execute("SELECT name, display_name FROM user_names WHERE user_id = ?", (user_id,))
+        user = res.fetchone()
+        name = user[0]
+        if user[1] != "": name += " ("+user[1]+")"
+        return(name)
 
     def insert_timelog_entry(self, user_id, selected_date, minutes):
         # Dates are stored in plain text - SQLite doesn't have a specific date type. This still works and is sortable as long as
@@ -71,8 +79,8 @@ class SQLConnection:
 
     # Get all entries by all users
     def timelog_table(self):
-        res = self.cur.execute("SELECT * FROM time_log LIMIT 30;")
-        header = ["Entry Number", "User ID", "Date Submitted", "Date of Log", "Minutes", "Project"]
+        res = self.cur.execute("SELECT u.name, tl.entry_num, tl.entry_date, tl.selected_date, tl.minutes FROM time_log tl INNER JOIN user_names u ON tl.user_id=u.user_id LIMIT 30;")
+        header = ["Name", "Entry Number", "Date Submitted", "Date of Log", "Minutes"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get the last n entries by user as a table
@@ -91,6 +99,12 @@ class SQLConnection:
         else:
             return(0)
 
+    # Get total minutes logged by all users
+    def all_time_sums(self):
+        # If the user has entries in the database return their total time logged
+        res = self.cur.execute(f"SELECT u.name, u.display_name, SUM(tl.minutes) AS time_sum FROM time_log tl INNER JOIN user_names u ON u.user_id=tl.user_id GROUP BY u.name, u.display_name ORDER BY time_sum;")
+        return(res.fetchall())
+
     # Get total minutes logged by user with given user_id within the given number of days of the current date
     def time_sum_after_date(self, user_id, days):
         today = datetime.date.today().strftime('%Y-%m-%d')
@@ -101,3 +115,8 @@ class SQLConnection:
             return(minutes)
         else:
             return(0)
+
+    def leaderboard(self):
+        # Returns a tuple containing the name of the user and the number of minutes logged
+        res = self.cur.execute(f"select u.name, u.display_name, sum(tl.minutes) as totalMinutes from user_names u INNER JOIN time_log tl ON u.user_id=tl.user_id GROUP BY u.name, u.user_id, u.display_name ORDER BY totalMinutes DESC;")
+        return(res.fetchall())

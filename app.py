@@ -19,9 +19,9 @@ slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 logging.basicConfig(level=logging.INFO)
 
 # Get user's full name from slack web client
-def full_name(user_id):
-    user_info = slack_web_client.users_info(user=user_id)
-    return(user_info["user"]["real_name"])
+def user_name(user_id):
+    sqlc = database.SQLConnection()
+    return(sqlc.user_name(user_id))
 
 # Check if user is a Slack admin
 def is_admin(user_id):
@@ -36,7 +36,7 @@ def validate_all_users():
     user_list = slack_web_client.users_list()
     sqlc = database.SQLConnection()
     for user in user_list["members"]:
-        sqlc.validate_user(user["id"], user["profile"]["real_name"])
+        sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
 
 # Get time log form
 @app.command("/timelog")
@@ -68,14 +68,29 @@ def get_logged_hours(ack, body, respond, logger):
     # Open an SQL connection
     sqlc = database.SQLConnection()
     output = ""
-    # Add the time logged by each user in the last week to the output
+    # Add the time logged by each user to the output
     for i in users:
-        name = full_name(i)
+        name = user_name(i)
         user_time = sqlc.time_sum(i)
         if (user_time > 0):
-            output += f"{name}: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
+            output += f"*{name}*: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
         else:
-            output += f"{name} has no logged hours\n"
+            output += f"*{name}* has no logged hours\n"
+    # Send output to Slack chat and console
+    logger.info("\n" + output)
+    respond(output)
+
+@app.command("/allusersums")
+def get_logged_hours(ack, body, respond, logger):
+    ack()
+    sqlc = database.SQLConnection()
+    user_sum = sqlc.all_time_sums()
+    output = ""
+    # Add the time logged by each user to the output
+    for user in user_sum:
+        # Add a custom display name if the user has one set
+        display_name = " ("+user[1]+")" if user[1] != "" else ""
+        output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
     # Send output to Slack chat and console
     logger.info("\n" + output)
     respond(output)
@@ -101,7 +116,7 @@ def get_logged_hours(ack, body, respond, logger):
     sqlc = database.SQLConnection()
     output = ""
     for user in users:
-        name = full_name(user)
+        name = user_name(user)
         table = sqlc.last_entries_table(user, num_entries)
         output += slack_table(f"{num_entries} most recent entries by {name}", table) + "\n"
 
@@ -145,8 +160,10 @@ def help(ack, respond, body, command):
         output += """
     \n*Admin Commands:*
     */gethours* Select users and get their total hours logged
+    */allusersums* Get the total hours logged by all users
     */getusertables* Select users to see their last few entries
-    */allusertable* Responds with the last 30 entries from all users"""
+    */allusertable* Responds with the last 30 entries from all users
+    */leaderboard* Responds with the top 5 contributors and their total time logged"""
     respond(output)
 
 @app.command("/myentries")
@@ -154,7 +171,7 @@ def user_entries(ack, respond, body, command, logger):
     ack()
     try:
         user_id = body['user_id']
-        name = full_name(user_id)
+        name = user_name(user_id)
         num_entries = int(command['text']) if command['text'] != "" else 5
     except:
         logger.exception("Invalid user input, failed to create time log entry")
@@ -174,20 +191,31 @@ def log_database(ack, body, respond, command, logger):
         table = sqlc.timelog_table()
 
         logger.info("\n" + table)
-        respond(slack_table("Last 30 entries from all users", table) + slack_table("users", sqlc.user_table()))
+        respond(slack_table("Last 30 entries from all users", table))
     else:
         respond("You must be an admin to use this command!")
+
+@app.command("/leaderboard")
+def leaderboard(ack, body, respond):
+    ack()
+    sqlc = database.SQLConnection()
+    contributions = sqlc.leaderboard()
+    output = "*Top 5 contributors this week*\n"
+    for i in contributions:
+        display_name = " ("+i[1]+")" if i[1] != "" else ""
+        output += f"{i[0]}{display_name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+    respond(output)
 
 @app.event("user_change")
 def update_user_info(event, logger):
     sqlc = database.SQLConnection()
-    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"])
+    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"], event["user"]["profile"]["display_name"])
     logger.info("Updated name for " + event["user"]["profile"]["real_name"])
 
 @app.event("team_join")
 def add_user(event, logger):
     sqlc = database.SQLConnection()
-    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"])
+    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"], event["user"]["profile"]["display_name"])
     logger.info("New user: " + event["user"]["profile"]["real_name"])
 
 # Handle irrelevant messages so they don't show up in logs
