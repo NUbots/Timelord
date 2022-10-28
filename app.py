@@ -1,4 +1,4 @@
-import os, re, logging, blocks, database
+import os, re, logging, blocks, database, responses
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
@@ -80,6 +80,8 @@ def get_logged_hours(ack, body, respond, logger):
     # Send output to Slack chat and console
     logger.info("\n" + output)
     respond(output)
+
+
 
 @app.command("/allusersums")
 def get_logged_hours(ack, body, respond, logger):
@@ -197,17 +199,17 @@ def log_database(ack, body, respond, command, logger):
         respond("You must be an admin to use this command!")
 
 @app.command("/leaderboard")
-def leaderboard(ack, body, respond):
+def leaderboard_request(ack, body, respond):
     ack()
-    sqlc = database.SQLConnection()
-    contributions = sqlc.leaderboard()
-    output = "*Top 10 contributors this week*\n"
-    for i in contributions:
-        # Add custom display name if applicable
-        name = i[0]
-        if i[1] != "": name += " ("+i[1]+")"
-        output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
-    respond(output)
+    user_interface = blocks.time_range_selection("tester")
+    respond(blocks=user_interface)
+
+@app.action("time_range_submit")
+def time_range_select(ack, body, respond, logger):
+    ack()
+    output_func = body["actions"][0]["value"]
+    respond(responses.time_constrained_responses[output_func]("IT WORKS!!!"))
+
 
 # Update users real name and custom display name in database when a user changes this info through slack
 @app.event("user_change")
@@ -227,6 +229,11 @@ def add_user(event, logger):
 @app.event("message")
 def message_event(body, logger):
     logger.debug(body)
+
+@app.action("picked_time_range")
+def handle_some_action(ack, body, logger):
+    ack()
+    logger.info(body)
 
 @app.action("user_added")
 def user_added_in_slack_input(ack, body, logger):

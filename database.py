@@ -104,16 +104,12 @@ class SQLConnection:
         res = self.cur.execute(f"SELECT u.name, u.display_name, SUM(tl.minutes) AS time_sum FROM time_log tl INNER JOIN user_names u ON u.user_id=tl.user_id GROUP BY u.name, u.display_name ORDER BY time_sum;")
         return(res.fetchall())
 
-    # Get total minutes logged by user with given user_id within the given number of days of the current date
-    def time_sum_after_date(self, user_id, days):
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        startDate = today - datetime.timedelta(days)
-        # If the user has entries in the database return their time logged within the specified period, otherwise return 0
-        minutes = res.fetchone()[0]
-        if (minutes != None):
-            return(minutes)
+    def all_time_sums_limited(self, start_date):
+        if (startDate):
+            today = datetime.date.today()
+            res = self.cur.execute(F"SELECT u.name, u.display_name, SUM(tl.minutes) AS time_sum FROM time_log tl INNER JOIN user_names u ON u.user_id=tl.user_id WHERE selectedDate BETWEEN ? AND ? GROUP BY u.name, u.display_name ORDER BY time_sum;", (start_date, today))
         else:
-            return(0)
+            res = self.cur.execute(F"SELECT u.name, u.display_name, SUM(tl.minutes) AS time_sum FROM time_log tl INNER JOIN user_names u ON u.user_id=tl.user_id GROUP BY u.name, u.display_name ORDER BY time_sum;")
 
     # Get the top 10 contributors
     def leaderboard(self):
