@@ -36,14 +36,14 @@ def slack_table(title, message):
 @app.command("/timelog")
 def time_log(ack, respond, command):
     ack()
-    respond(blocks=blocks.log_form)
+    respond(blocks=blocks.log_form())
 
 # Get admin user request form
 @app.command("/gethours")
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.user_hours_selection)
+        respond(blocks=blocks.user_hours_selection())
     else:
         respond("You must be an admin to use this command!")
 
@@ -79,7 +79,7 @@ def get_logged_hours(ack, body, respond, logger):
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.user_table_selection)
+        respond(blocks=blocks.user_table_selection())
     else:
         respond("You must be an admin to use this command!")
 
