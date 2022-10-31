@@ -107,22 +107,35 @@ def submit_timelog_form(ack, respond, body, logger):
     user_id = body['user']['id']
     # Get user-selected date, hours, and minutes from form
     selected_date = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
-    time_input = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
+    time_input = body['state']['values']['hours_input']['select_hours']['value']
+    hours_match = re.search(r'\d+(?=h)', time_input)
+    minutes_match = re.search(r'\d+(?=m)', time_input)
 
     try:
-        minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
+        # Convert hours and minutes from regex match objects to integers and default if needed
+        hours = int(hours_match.group() if hours_match else 0)
+        minutes = int(minutes_match.group() if minutes_match else 0)
 
-        logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
-        
+        print(hours)
+        print(minutes)
+
+        # allow up the the total hours or minutes in a day (user should be able to input only minutes)
+        if (hours > 24 | minutes > 1440 | hours < 0 | minutes < 0 | (hours == 0 and minutes == 0)):
+            raise ValueError("Invalid hours and minutes entered")
+
+        logger.info(f"New log entry of {hours} hours and {minutes} minutes for {selected_date} by {user_id}")
+        total_minutes = hours*60 + minutes    # user input (hours and minutes) stored as minutes only
+
+        minutes += hours*60 #Only minutes are stored in the database so the total time should be converted before inserting
         # Open an SQL connection and add entry to database containing user input
         sqlc = database.SQLConnection()
         sqlc.insert_timelog_entry(user_id, selected_date, minutes)
 
-        respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
+        respond(f"Time logged: {hours} hours and {minutes} minutes for date {selected_date}.")
 
     except Exception as e:
         # Show the user an error if they input anything other than two integers seperated by some character / characters
-        logger.exception("Invalid user input, failed to create time log entry")
+        logger.exception(e,"Invalid user input, failed to create time log entry.")
         respond("*Invalid input!* Please try again!")
 
 
