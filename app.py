@@ -56,8 +56,8 @@ def submit_timelog_form(ack, respond, body, logger):
     ack()
     user_id = body['user']['id']
     # Get user-selected date, hours, and minutes from form
-    selected_date = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
-    time_input = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
+    selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
+    time_input = re.findall(r'\d+', body['state']['values']['hours_block']['hours_input']['value']) # creates list containing two strings (hours and minutes)
 
     try:
         minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
@@ -89,7 +89,7 @@ def get_user_hours_form(ack, respond, body, command):
 def get_logged_hours(ack, body, respond, logger):
     ack()
     # Get list of users submitted for query by Slack admin
-    users = body['state']['values']['user_input']['user_added']['selected_users']
+    users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
     # Open an SQL connection
     sqlc = database.SQLConnection()
     output = ""
@@ -118,9 +118,9 @@ def get_user_hours_form(ack, respond, body, command):
 @app.action("getusertables_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
-    users = body['state']['values']['user_input']['user_added']['selected_users']
+    users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
     try:
-        num_entries = re.findall(r'\d+', body['state']['values']['num_entries']['select_num_entries']['value'])[0]
+        num_entries = re.findall(r'\d+', body['state']['values']['num_entries_block']['num_entries_input']['value'])[0]
     except:
         respond('Invalid input! Please try again.')
 
@@ -211,7 +211,7 @@ def log_database(ack, body, respond, command, logger):
 
 # Get a leaderboard with the top 10 contributors and their hours logged
 @app.command("/leaderboard")
-def leaderboard(ack, body, respond):
+def leaderboard(ack, body, respond, logger, command):
     ack()
     try:
         user_id = body['user_id']
@@ -222,8 +222,8 @@ def leaderboard(ack, body, respond):
 
     if(is_admin(body['user_id'])):
         sqlc = database.SQLConnection()
-        contributions = sqlc.leaderboard()
-        output = "*Top 10 contributors*\n"
+        contributions = sqlc.leaderboard(num_users)
+        output = f"*Top {num_users} contributors*\n"
         for i in contributions:
             # Add custom display name if applicable
             name = i[0]
@@ -254,12 +254,12 @@ def add_user(event, logger):
 def message_event(body, logger):
     logger.debug(body)
 
-@app.action("user_added")
+@app.action("user_select_input")
 def user_added_in_slack_input(ack, body, logger):
     ack()
     logger.debug(body)
 
-@app.action("select_date")
+@app.action("date_select_input")
 def select_date(ack, body, logger):
     ack()
     logger.debug(body)

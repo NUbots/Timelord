@@ -16,7 +16,7 @@ def timelog_form():
         {
             # Date picker
             "type": "input",
-            "block_id": "date_input",
+            "block_id": "date_select_block",
             "element": {
                 "type": "datepicker",
                 # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings - in this format lexicographical order is identical to chronological order.
@@ -25,7 +25,7 @@ def timelog_form():
                     "type": "plain_text",
                     "text": "Select a date",
                 },
-                "action_id": "select_date"
+                "action_id": "date_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -35,10 +35,10 @@ def timelog_form():
         {
             # Hours input
             "type": "input",
-            "block_id": "hours_input",
+            "block_id": "hours_block",
             "element": {
                 "type": "plain_text_input",
-                "action_id": "select_hours"
+                "action_id": "hours_input"
             },
             "label": {
                 "type": "plain_text",
@@ -70,14 +70,14 @@ def gethours_form():
     output = [
         {
             "type": "input",
-            "block_id": "user_input",
+            "block_id": "user_select_block",
             "element": {
                 "type": "multi_users_select",
                 "placeholder": {
                     "type": "plain_text",
                     "text": "Select users",
                 },
-                "action_id": "user_added"
+                "action_id": "user_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -105,14 +105,14 @@ def getusertables_form():
     output = [
         {
             "type": "input",
-            "block_id": "user_input",
+            "block_id": "user_select_block",
             "element": {
                 "type": "multi_users_select",
                 "placeholder": {
                     "type": "plain_text",
                     "text": "Select users",
                 },
-                "action_id": "user_added"
+                "action_id": "user_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -122,10 +122,10 @@ def getusertables_form():
         {
             # Number of entries
             "type": "input",
-            "block_id": "num_entries",
+            "block_id": "num_entries_block",
             "element": {
                 "type": "plain_text_input",
-                "action_id": "select_num_entries"
+                "action_id": "num_entries_input"
             },
             "label": {
                 "type": "plain_text",

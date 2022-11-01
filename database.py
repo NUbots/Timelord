@@ -140,7 +140,7 @@ class SQLConnection:
             return(0)
 
     # Get the top 10 contributors
-    def leaderboard(self):
+    def leaderboard(self, num_users):
         # Returns a tuple of tuples containing the name of the user, a custom dispay name (or empty string), and the number of minutes logged
         res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
                                   FROM user_names u
@@ -148,5 +148,5 @@ class SQLConnection:
                                   ON u.user_id=tl.user_id
                                   GROUP BY u.name, u.user_id, u.display_name
                                   ORDER BY totalMinutes DESC
-                                  LIMIT 10;""")
+                                  LIMIT ?;""", (num_users,))
         return(res.fetchall())
