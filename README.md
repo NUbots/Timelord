@@ -19,3 +19,17 @@ Add the following environment variables to the `.env` file
 
 ## Usage
 Run app.py to launch Timelord
+
+### Slash Commands
+
+#### User Commands:
+- `/timelog` Opens a time logging form
+- `/deletelast` Delete your last entry
+- `/myentries n` Get a table with your last n entries (defaults to 5)
+
+#### Admin Commands:
+- `/gethours` Select users and get their total hours logged
+- `/allusersums` Get the total hours logged by all users
+- `/getusertables` Select users to see their last few entries
+- `/allusertable` Responds with the last 30 entries from all users
+- `/leaderboard n` Responds with the top n contributors and their total time logged (defaults to 10)
