@@ -237,16 +237,6 @@ def add_user(event, logger):
 def message_event(body, logger):
     logger.debug(body)
 
-@app.action("user_added")
-def user_added_in_slack_input(ack, body, logger):
-    ack()
-    logger.debug(body)
-
-@app.action("select_date")
-def select_date(ack, body, logger):
-    ack()
-    logger.debug(body)
-
 if __name__ == "__main__":
     # Create tables
     database.create_log_table()
