@@ -7,7 +7,7 @@ def currentDate():
     return datetime.now()
 
 # Time logging form blocks
-def log_form():
+def timelog_form():
     output = [
         {
             # Horizontal line
@@ -59,14 +59,14 @@ def log_form():
                     "text": "Submit",
                 },
                 "value": "placeholder",
-                "action_id": "timelog_submit"
+                "action_id": "timelog_response"
             }
         }
     ]
     return output
 
 # User selection form for hour sum
-def user_hours_selection():
+def gethours_form():
     output = [
         {
             "type": "input",
@@ -93,7 +93,7 @@ def user_hours_selection():
                         "type": "plain_text",
                         "text": "Confirm Selection",
                     },
-                    "action_id": "get_user_hours"
+                    "action_id": "gethours_response"
                 }
             ]
         }
@@ -101,7 +101,7 @@ def user_hours_selection():
     return output
 
 # User selection form for table
-def user_table_selection():
+def getusertables_form():
     output = [
         {
             "type": "input",
@@ -141,7 +141,7 @@ def user_table_selection():
                         "type": "plain_text",
                         "text": "Confirm Selection",
                     },
-                    "action_id": "get_user_table"
+                    "action_id": "getusertables_response"
                 },
             ]
         }

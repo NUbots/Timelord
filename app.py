@@ -18,6 +18,13 @@ slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 # Set up logging for info messages
 logging.basicConfig(level=logging.INFO)
 
+# Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
+def slack_table(title, message):
+    return(f"*{title}*\n```{message}```")
+
+
+################################### User validation ###################################
+
 # Get user's full name and custom display name (if applicable) from database
 def user_name(user_id):
     sqlc = database.SQLConnection()
@@ -28,10 +35,6 @@ def is_admin(user_id):
     user_info = slack_web_client.users_info(user=user_id)
     return(user_info["user"]["is_admin"])
 
-# Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
-def slack_table(title, message):
-    return(f"*{title}*\n```{message}```")
-
 # Check all usernames and custom display names in the database against info retrieved from slack web client
 def validate_all_users():
     user_list = slack_web_client.users_list()
@@ -39,29 +42,48 @@ def validate_all_users():
     for user in user_list["members"]:
         sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
 
+################################### Commands with forms ###################################
+
 # Get time log form
 @app.command("/timelog")
 def time_log(ack, respond, command):
     ack()
-    respond(blocks=blocks.log_form())
+    respond(blocks=blocks.timelog_form())
+
+@app.action("timelog_response")
+def submit_timelog_form(ack, respond, body, logger):
+    ack()
+    user_id = body['user']['id']
+    # Get user-selected date, hours, and minutes from form
+    selected_date = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
+    time_input = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
+
+    try:
+        minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
+
+        logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
+
+        # Open an SQL connection and add entry to database containing user input
+        sqlc = database.SQLConnection()
+        sqlc.insert_timelog_entry(user_id, selected_date, minutes)
+
+        respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
+
+    except Exception as e:
+        # Show the user an error if they input anything other than two integers seperated by some character / characters
+        logger.exception("Invalid user input, failed to create time log entry")
+        respond("*Invalid input!* Please try again!")
 
 # Get admin user request form
 @app.command("/gethours")
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.user_hours_selection())
+        respond(blocks=blocks.gethours_form())
     else:
         respond("You must be an admin to use this command!")
 
-@app.command("/deletelast")
-def delete_last(ack, respond, body, command):
-    ack()
-    sqlc = database.SQLConnection()
-    sqlc.remove_last_entry(body['user_id'])
-    respond("Last entry removed!")
-
-@app.action("get_user_hours")
+@app.action("gethours_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
     # Get list of users submitted for query by Slack admin
@@ -81,31 +103,16 @@ def get_logged_hours(ack, body, respond, logger):
     logger.info("\n" + output)
     respond(output)
 
-@app.command("/allusersums")
-def get_logged_hours(ack, body, respond, logger):
-    ack()
-    sqlc = database.SQLConnection()
-    user_sum = sqlc.all_time_sums()
-    output = ""
-    # Add the time logged by each user to the output
-    for user in user_sum:
-        # Add a custom display name if the user has one set
-        if user[1] != "": display_name = " ("+user[1]+")"
-        output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
-    # Send output to Slack chat and console
-    logger.info("\n" + output)
-    respond(output)
-
 # Get time log tables for selected users form
 @app.command("/getusertables")
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.user_table_selection())
+        respond(blocks=blocks.getusertables_form())
     else:
         respond("You must be an admin to use this command!")
 
-@app.action("get_user_table")
+@app.action("getusertables_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
     users = body['state']['values']['user_input']['user_added']['selected_users']
@@ -113,40 +120,16 @@ def get_logged_hours(ack, body, respond, logger):
         num_entries = re.findall(r'\d+', body['state']['values']['num_entries']['select_num_entries']['value'])[0]
     except:
         respond('Invalid input! Please try again.')
-    
+
     sqlc = database.SQLConnection()
     output = ""
     for user in users:
         name = user_name(user)
         table = sqlc.last_entries_table(user, num_entries)
         output += slack_table(f"{num_entries} most recent entries by {name}", table) + "\n"
-
     respond(output)
 
-@app.action("timelog_submit")
-def submit_timelog_form(ack, respond, body, logger):
-    ack()
-    user_id = body['user']['id']
-    # Get user-selected date, hours, and minutes from form
-    selected_date = datetime.strptime(body['state']['values']['date_input']['select_date']['selected_date'], "%Y-%m-%d").date()
-    time_input = re.findall(r'\d+', body['state']['values']['hours_input']['select_hours']['value']) # creates list containing two strings (hours and minutes)
-
-    try:
-        minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
-
-        logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
-        
-        # Open an SQL connection and add entry to database containing user input
-        sqlc = database.SQLConnection()
-        sqlc.insert_timelog_entry(user_id, selected_date, minutes)
-
-        respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
-
-    except Exception as e:
-        # Show the user an error if they input anything other than two integers seperated by some character / characters
-        logger.exception("Invalid user input, failed to create time log entry")
-        respond("*Invalid input!* Please try again!")
-
+################################### Commands without forms ###################################
 
 # List commands (may need to rename to avoid conflict)
 @app.command("/help")
@@ -167,6 +150,7 @@ def help(ack, respond, body, command):
     */leaderboard* Responds with the top 10 contributors and their total time logged"""
     respond(output)
 
+
 @app.command("/myentries")
 def user_entries(ack, respond, body, command, logger):
     ack()
@@ -182,6 +166,29 @@ def user_entries(ack, respond, body, command, logger):
     table = sqlc.last_entries_table(user_id, num_entries)
 
     respond(slack_table(f"{num_entries} most recent entries by {name}", table))
+
+@app.command("/deletelast")
+def delete_last(ack, respond, body, command):
+    ack()
+    sqlc = database.SQLConnection()
+    sqlc.remove_last_entry(body['user_id'])
+    respond("Last entry removed!")
+
+@app.command("/allusersums")
+def get_logged_hours(ack, body, respond, logger):
+    ack()
+    sqlc = database.SQLConnection()
+    user_sum = sqlc.all_time_sums()
+    output = ""
+    # Add the time logged by each user to the output
+    for user in user_sum:
+        # Add a custom display name if the user has one set
+        if user[1] != "": display_name = " ("+user[1]+")"
+        output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
+    # Send output to Slack chat and console
+    logger.info("\n" + output)
+    respond(output)
+
 
 # Print entire database to console
 @app.command("/allusertable")
@@ -208,6 +215,8 @@ def leaderboard(ack, body, respond):
         if i[1] != "": name += " ("+i[1]+")"
         output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
     respond(output)
+
+################################### Other events to be handled ###################################
 
 # Update users real name and custom display name in database when a user changes this info through slack
 @app.event("user_change")
