@@ -25,6 +25,7 @@ def timelog_form():
                     "type": "plain_text",
                     "text": "Select a date",
                 },
+                "action_id": "select_date"
             },
             "label": {
                 "type": "plain_text",
@@ -37,6 +38,7 @@ def timelog_form():
             "block_id": "hours_input",
             "element": {
                 "type": "plain_text_input",
+                "action_id": "select_hours"
             },
             "label": {
                 "type": "plain_text",
@@ -75,6 +77,7 @@ def gethours_form():
                     "type": "plain_text",
                     "text": "Select users",
                 },
+                "action_id": "user_added"
             },
             "label": {
                 "type": "plain_text",
@@ -109,6 +112,7 @@ def getusertables_form():
                     "type": "plain_text",
                     "text": "Select users",
                 },
+                "action_id": "user_added"
             },
             "label": {
                 "type": "plain_text",
@@ -121,6 +125,7 @@ def getusertables_form():
             "block_id": "num_entries",
             "element": {
                 "type": "plain_text_input",
+                "action_id": "select_num_entries"
             },
             "label": {
                 "type": "plain_text",
