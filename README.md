@@ -19,3 +19,8 @@ Add the following environment variables to the `.env` file
 
 ## Usage
 Run app.py to launch Timelord
+
+## Autostart
+Change the paths in `timelord.service` to match where you have put it, then copy `timelord.serivce` into
+`/etc/systemd/system` and finally run `sudo systemctl enable timelord` and `sudo systemctl start timelord`.
+Use `sudo systemctl status timelord` to view the program's status.
