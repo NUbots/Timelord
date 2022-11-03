@@ -70,9 +70,9 @@ def submit_timelog_form(ack, respond, body, logger):
 
         respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
 
-    except Exception as e:
+    except:
         # Show the user an error if they input anything other than two integers seperated by some character / characters
-        logger.exception("Invalid user input, failed to create time log entry")
+        logger.exception("Invalid user input, failed to create time log entry.")
         respond("*Invalid input!* Please try again!")
 
 # Get user-selection form (choose users to see their total hours logged)
@@ -215,7 +215,7 @@ def leaderboard(ack, body, respond, logger, command):
     ack()
     try:
         user_id = body['user_id']
-        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 5 entries
+        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 10 entries
     except:
         logger.exception("Invalid user input, failed to fetch leaderboard")
         respond("*Invalid input!* Please try again! You can get a leaderboard with n users with `/leaderboard n`. If you leave n blank a default value of 10 will be used.")

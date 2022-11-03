@@ -23,6 +23,7 @@ Run app.py to launch Timelord
 ### Slash Commands
 
 #### User Commands:
+- `/help` Get this list of commands
 - `/timelog` Opens a time logging form
 - `/deletelast` Delete your last entry
 - `/myentries n` Get a table with your last n entries (defaults to 5)
