@@ -39,7 +39,8 @@ def parse_date_constraint(constraint):
             # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
             return today.replace(day=1)
         case "all time":
-            return None
+            # Empty string - SQLite uses strings to store dates and this is the smallest possible string lexicographically
+            return ""
 
 ################################### User validation ###################################
 
@@ -139,8 +140,8 @@ def get_logged_hours(ack, body, respond, logger):
     print(body['state']['values']['date_constraint_block'])
     users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
     # If 'All time' is chosen start_date will be None
-    # start_date_text = body['state']['values']['date_constraint_block']['time_constraint_input']['selected_option']['value']
-    start_date = parse_date_constraint()
+    start_date_text = body['state']['values']['date_constraint_block']['time_constraint_input']['selected_option']['value']
+    start_date = parse_date_constraint(start_date_text)
 
     try:
         num_entries = re.findall(r'\d+', body['state']['values']['num_entries_block']['num_entries_input']['value'])[0]
@@ -148,13 +149,13 @@ def get_logged_hours(ack, body, respond, logger):
         respond('Invalid input! Please try again.')
 
     sqlc = database.SQLConnection()
-    output = ""
-    if (start_date):
-        output += "Date constraint: " + start_date.date()
+    output = f"{num_entries} most recent entries "
+    if (start_date != ""):
+        output += start_date_text
     for user in users:
         name = user_name(user)
-        table = sqlc.last_entries_table(user, num_entries)
-        output += slack_table(f"{num_entries} most recent entries by {name}", table) + "\n"
+        table = sqlc.last_entries_table(user, num_entries, start_date)
+        output += "\n" + slack_table(f"{name}", table)
     respond(output)
 
 ################################### Commands without forms ###################################

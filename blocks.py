@@ -152,8 +152,7 @@ def getusertables_form():
     ]
     return output
 
-# If a seperate submit button is used a listener function will catch the default date_constraint_input event so it
-# won't do anything and won't show up in logs
+# This is a seperate function because it's a large block used in most of the commands and in some cases is the only 
 def date_constraint():
     # Let the user choose a date constraint - the time_constraint_response event listener will run the function at
     # response_endpoint with the given date constraint
@@ -167,9 +166,9 @@ def date_constraint():
             "initial_option": {
                 "text": {
                     "type": "plain_text",
-                    "text": "All time",
+                    "text": "This year",
                 },
-                "value": "all time"
+                "value": "This year"
             },
             "placeholder": {
                 "type": "plain_text",
@@ -179,9 +178,9 @@ def date_constraint():
                 {
                     "text": {
                         "type": "plain_text",
-                        "text": "All time",
+                        "text": "This year",
                     },
-                    "value": "all time"
+                    "value": "This year"
                 },
                 {
                     "text": {

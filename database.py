@@ -83,8 +83,8 @@ class SQLConnection:
         self.cur.execute("""DELETE FROM time_log
                             WHERE (user_id, entry_num) IN (
                                 SELECT user_id, entry_num FROM time_log
-                                WHERE user_id = ? ORDER BY
-                                entry_num DESC LIMIT 1);""", (user_id,))
+                                WHERE user_id = ? 
+                                ORDER BY entry_num DESC LIMIT 1);""", (user_id,))
 
     # Get all entries by all users
     def timelog_table(self):
@@ -97,11 +97,13 @@ class SQLConnection:
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get the last n entries by user as a table
-    def last_entries_table(self, user_id, num_entries):
+    def last_entries_table(self, user_id, num_entries, start_date = ""):
         res = self.cur.execute("""SELECT entry_num, entry_date, selected_date, minutes
-                                FROM time_log WHERE user_id = ?
+                                FROM time_log 
+                                WHERE user_id = ?
+                                AND selected_date > ?
                                 ORDER BY entry_num DESC
-                                LIMIT ?;""", (user_id, num_entries))
+                                LIMIT ?;""", (user_id, start_date, num_entries))
         header = ["Entry Number", "Date Submitted", "Date of Log", "Minutes"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
@@ -127,17 +129,6 @@ class SQLConnection:
                                   GROUP BY u.name, u.display_name
                                   ORDER BY time_sum;""")
         return(res.fetchall())
-
-    # Get total minutes logged by user with given user_id within the given number of days of the current date
-    def time_sum_after_date(self, user_id, days):
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        startDate = today - datetime.timedelta(days)
-        # If the user has entries in the database return their time logged within the specified period, otherwise return 0
-        minutes = res.fetchone()[0]
-        if (minutes != None):
-            return(minutes)
-        else:
-            return(0)
 
     # Get the top 10 contributors
     def leaderboard(self, num_users):
