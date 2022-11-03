@@ -124,13 +124,14 @@ def getusertables_form():
             # Number of entries
             "type": "input",
             "block_id": "num_entries_block",
-            "element": {
+            "element": { 
                 "type": "plain_text_input",
-                "action_id": "num_entries_input"
+                "action_id": "num_entries_input",
+                "initial_value": "20"
             },
             "label": {
                 "type": "plain_text",
-                "text": "Number of entries to return for each user",
+                "text": "Maximum number of entries to return for each user",
             }
         },
         # Add a date constraint selector
@@ -149,7 +150,6 @@ def getusertables_form():
             ]
         }
     ]
-    print(output)
     return output
 
 # If a seperate submit button is used a listener function will catch the default date_constraint_input event so it
@@ -159,9 +159,18 @@ def date_constraint():
     # response_endpoint with the given date constraint
     today = datetime.today()
     output = {
+        "block_id": "date_constraint_block",
         "type": "input",
         "element": {
             "type": "static_select",
+            # Default to all time
+            "initial_option": {
+                "text": {
+                    "type": "plain_text",
+                    "text": "All time",
+                },
+                "value": "all time"
+            },
             "placeholder": {
                 "type": "plain_text",
                 "text": "Select an item",
@@ -172,7 +181,7 @@ def date_constraint():
                         "type": "plain_text",
                         "text": "All time",
                     },
-                    "value": "all_time"
+                    "value": "all time"
                 },
                 {
                     "text": {
@@ -190,14 +199,14 @@ def date_constraint():
                     # Move back n days where n is the weekday number (so we reach the start of the week)
                     # Monday is 0 and Sunday is 6 here
                     # "value": today - timedelta(days = today.weekday())
-                    "value": "this_week"
+                    "value": "this week"
                 },
                 {
                     "text": {
                         "type": "plain_text",
                         "text": "This month",
                     },
-                    "value": "this_month"
+                    "value": "this month"
                     # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
                     # "value": today.replace(day=1)
                 }

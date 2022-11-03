@@ -3,9 +3,13 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from pathlib import Path
+
+import sys
+if not sys.version_info >= (3, 10):
+    raise Exception("Requires Python 3.10 or higher!")
 
 dotenv_path = Path(".env")
 if dotenv_path.exists():
@@ -22,6 +26,20 @@ logging.basicConfig(level=logging.INFO)
 def slack_table(title, message):
     return(f"*{title}*\n```{message}```")
 
+def parse_date_constraint(constraint):
+    today = datetime.today()
+    # Requires python 3.10 or higher
+    match constraint:
+        case "today": 
+            return today
+        case "this week":
+            # Move back n days where n is the weekday number (so we reach the start of the week (Monday is 0, Sunday is 6))
+            return today - timedelta(days = today.weekday())
+        case "this month":
+            # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
+            return today.replace(day=1)
+        case "all time":
+            return None
 
 ################################### User validation ###################################
 
@@ -118,7 +136,12 @@ def get_user_hours_form(ack, respond, body, command):
 @app.action("getusertables_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
+    print(body['state']['values']['date_constraint_block'])
     users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
+    # If 'All time' is chosen start_date will be None
+    # start_date_text = body['state']['values']['date_constraint_block']['time_constraint_input']['selected_option']['value']
+    start_date = parse_date_constraint()
+
     try:
         num_entries = re.findall(r'\d+', body['state']['values']['num_entries_block']['num_entries_input']['value'])[0]
     except:
@@ -126,6 +149,8 @@ def get_logged_hours(ack, body, respond, logger):
 
     sqlc = database.SQLConnection()
     output = ""
+    if (start_date):
+        output += "Date constraint: " + start_date.date()
     for user in users:
         name = user_name(user)
         table = sqlc.last_entries_table(user, num_entries)
@@ -267,7 +292,7 @@ def select_date(ack, body, logger):
 @app.action("time_constraint_input")
 def handle_some_action(ack, body, logger):
     ack()
-    logger.info(body)
+    logger.debug(body)
 
 
 if __name__ == "__main__":
