@@ -73,7 +73,7 @@ def submit_timelog_form(ack, respond, body, logger):
     except:
         # Show the user an error if they input anything other than two integers seperated by some character / characters
         logger.exception("Invalid user input, failed to create time log entry.")
-        respond("*Invalid input!* Please try again!")
+        respond("*Invalid input!* Please try again! In the *Time logged* field enter two numbers seperated by some characters (e.g. 3 25 or 3h 25m)")
 
 # Get user-selection form (choose users to see their total hours logged)
 @app.command("/gethours")
