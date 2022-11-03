@@ -264,6 +264,12 @@ def select_date(ack, body, logger):
     ack()
     logger.debug(body)
 
+@app.action("time_constraint_input")
+def handle_some_action(ack, body, logger):
+    ack()
+    logger.info(body)
+
+
 if __name__ == "__main__":
     # Create tables
     database.create_log_table()

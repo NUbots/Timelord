@@ -1,6 +1,6 @@
 # Slack block kit - https://api.slack.com/block-kit
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Get current date for time logging form
 def currentDate():
@@ -19,7 +19,8 @@ def timelog_form():
             "block_id": "date_select_block",
             "element": {
                 "type": "datepicker",
-                # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings - in this format lexicographical order is identical to chronological order.
+                # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings
+                # and in this format lexicographical order is identical to chronological order.
                 "initial_date": currentDate().strftime("%Y-%m-%d"),
                 "placeholder": {
                     "type": "plain_text",
@@ -132,6 +133,8 @@ def getusertables_form():
                 "text": "Number of entries to return for each user",
             }
         },
+        # Add a date constraint selector
+        date_constraint(),
         {
             "type": "actions",
             "elements": [
@@ -146,4 +149,128 @@ def getusertables_form():
             ]
         }
     ]
+    print(output)
     return output
+
+# If a seperate submit button is used a listener function will catch the default date_constraint_input event so it
+# won't do anything and won't show up in logs
+def date_constraint():
+    # Let the user choose a date constraint - the time_constraint_response event listener will run the function at
+    # response_endpoint with the given date constraint
+    today = datetime.today()
+    output = {
+        "type": "input",
+        "element": {
+            "type": "static_select",
+            "placeholder": {
+                "type": "plain_text",
+                "text": "Select an item",
+            },
+            "options": [
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "text": "All time",
+                    },
+                    "value": "all_time"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Today",
+                    },
+                    # "value": today
+                    "value": "today"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "text": "This week",
+                    },
+                    # Move back n days where n is the weekday number (so we reach the start of the week)
+                    # Monday is 0 and Sunday is 6 here
+                    # "value": today - timedelta(days = today.weekday())
+                    "value": "this_week"
+                },
+                {
+                    "text": {
+                        "type": "plain_text",
+                        "text": "This month",
+                    },
+                    "value": "this_month"
+                    # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
+                    # "value": today.replace(day=1)
+                }
+            ],
+            "action_id": "time_constraint_input"
+        },
+        "label": {
+            "type": "plain_text",
+            "text": "Selection range",
+        }
+    }
+
+    print("got it")
+    return output
+
+# def time_constraint_form(response_endpoint):
+#     # Let the user choose a date constraint - the time_constraint_response event listener will run the function at
+#     # response_endpoint with the given date constraint
+#     today = date.today()
+#     output = [
+#         {
+#             "type": "input",
+#             "element": {
+#                 "type": "static_select",
+#                 "placeholder": {
+#                     "type": "plain_text",
+#                     "text": "Select an item",
+#                     "emoji": true
+#                 },
+#                 "options": [
+#                     {
+#                         "text": {
+#                             "type": "plain_text",
+#                             "text": "Today",
+#                             "emoji": true
+#                         },
+#                         "value": today
+#                     },
+#                     {
+#                         "text": {
+#                             "type": "plain_text",
+#                             "text": "This week",
+#                             "emoji": true
+#                         },
+#                         # Move back n days where n is the weekday number (so we reach the start of the week)
+#                         # Monday is 0 and Sunday is 6 here
+#                         "value": today - datetime.timedelta(days = today.weekday())
+#                     },
+#                     {
+#                         "text": {
+#                             "type": "plain_text",
+#                             "text": "This month",
+#                             "emoji": true
+#                         },
+#                         # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
+#                         "value": today.replace(day=1)
+#                     },
+#                     {
+#                         "text": {
+#                             "type": "plain_text",
+#                             "text": "All time",
+#                             "emoji": true
+#                         },
+#                         "value": "All time"
+#                     }
+#                 ],
+#                 "value": response_endpoint,
+#                 "action_id": "time_constraint_response"
+#             },
+#             "label": {
+#                 "type": "plain_text",
+#                 "text": "Selection range",
+#                 "emoji": true
+#             }
+#         }
+#     ]
