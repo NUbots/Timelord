@@ -34,3 +34,8 @@ Run app.py to launch Timelord
 - `/getusertables` Select users to see their last few entries
 - `/allusertable` Responds with the last 30 entries from all users
 - `/leaderboard n` Responds with the top n contributors and their total time logged (defaults to 10)
+
+## Autostart
+Change the paths in `timelord.service` to match where you have put it, then copy `timelord.serivce` into
+`/etc/systemd/system` and finally run `sudo systemctl enable timelord` and `sudo systemctl start timelord`.
+Use `sudo systemctl status timelord` to view the program's status.
