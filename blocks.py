@@ -147,3 +147,44 @@ def getusertables_form():
         }
     ]
     return output
+
+# Time logging form blocks
+def dateoverview_form():
+    output = [
+        {
+            # Date picker
+            "type": "input",
+            "block_id": "date_select_block",
+            "element": {
+                "type": "datepicker",
+                "initial_date": currentDate().strftime("%Y-%m-%d"),
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select a date",
+                },
+                "action_id": "date_select_input"
+            },
+            "label": {
+                "type": "plain_text",
+                "text": "Date to log",
+            }
+        },
+        {
+            # Submit button
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Click to submit and log hours"
+            },
+            "accessory": {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Submit",
+                },
+                "value": "placeholder",
+                "action_id": "dateoverview_response"
+            }
+        }
+    ]
+    return output

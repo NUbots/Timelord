@@ -132,6 +132,22 @@ def get_logged_hours(ack, body, respond, logger):
         output += slack_table(f"{num_entries} most recent entries by {name}", table) + "\n"
     respond(output)
 
+@app.command("/dateoverview")
+def get_date_overview_form(ack, respond, body):
+    ack()
+    if(is_admin(body['user_id'])):
+        respond(blocks=blocks.dateoverview_form())
+    else:
+        respond("You must be an admin to use this command!")
+
+@app.action("dateoverview_response")
+def get_date_overview(ack, body, respond, logger):
+    ack()
+    selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
+    sqlc = database.SQLConnection()
+    table = sqlc.entries_for_date_table(selected_date)
+    respond("\n" + slack_table(f"All entries for {selected_date}", table))
+
 ################################### Commands without forms ###################################
 
 @app.command("/help")
