@@ -188,7 +188,7 @@ def get_logged_hours(ack, body, respond, logger):
         # Add the time logged by each user to the output
         for user in user_sum:
             # Add a custom display name if the user has one set
-            if user[1] != "": display_name = " ("+user[1]+")"
+            display_name = " ("+user[1]+")" if user[1] != "" else ""
             output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
         # Send output to Slack chat and console
         logger.info("\n" + output)

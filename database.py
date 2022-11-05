@@ -128,17 +128,6 @@ class SQLConnection:
                                   ORDER BY time_sum;""")
         return(res.fetchall())
 
-    # Get total minutes logged by user with given user_id within the given number of days of the current date
-    def time_sum_after_date(self, user_id, days):
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        startDate = today - datetime.timedelta(days)
-        # If the user has entries in the database return their time logged within the specified period, otherwise return 0
-        minutes = res.fetchone()[0]
-        if (minutes != None):
-            return(minutes)
-        else:
-            return(0)
-
     # Get the top 10 contributors
     def leaderboard(self, num_users):
         # Returns a tuple of tuples containing the name of the user, a custom dispay name (or empty string), and the number of minutes logged
