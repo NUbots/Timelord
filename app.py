@@ -180,15 +180,16 @@ def get_date_overview(ack, body, respond, logger):
 def leaderboard(ack, body, respond, logger, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.dateoverview_form())
+        respond(blocks=blocks.leaderboard_form())
     else:
         respond("You must be an admin to use this command!")
 
 @app.action("leaderboard_response")
-def leaderboard_response(ack, body, respond, logger, command)
+def leaderboard_response(ack, body, respond, logger, command):
+    ack()
     try:
         user_id = body['user_id']
-        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 5 entries
+        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 10 entries
     except:
         logger.exception("Invalid user input, failed to fetch leaderboard")
         respond("*Invalid input!* Please try again! You can get a leaderboard with n users with `/leaderboard n`. If you leave n blank a default value of 10 will be used.")
