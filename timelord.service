@@ -1,0 +1,17 @@
+[Unit]
+Description="Timelord auto-start unit"
+Wants=network.target
+After=network.target
+RequiresMountsFor=/home/nubots
+
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/home/nubots/Documents/Timelord
+User=nubots
+Environment=HOME="/home/nubots/"
+PassEnvironment=HOME
+ExecStart=/home/nubots/Documents/Timelord/.venv/bin/python /home/nubots/Documents/Timelord/app.py
+
+[Install]
+WantedBy=multi-user.target

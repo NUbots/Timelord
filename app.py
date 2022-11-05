@@ -89,10 +89,10 @@ def submit_timelog_form(ack, respond, body, logger):
 
         respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
 
-    except Exception as e:
-        # Show the user an error if they input anything other than two integers seperated by some character / characters
-        logger.exception("Invalid user input, failed to create time log entry")
-        respond("*Invalid input!* Please try again!")
+    except:
+        # Show the user an error if they input anything other than two integers separated by some character / characters
+        logger.exception("Invalid user input, failed to create time log entry.")
+        respond("*Invalid input!* Please try again! In the *Time logged* field enter two numbers separated by some characters (e.g. 3h 25m)")
 
 # Get user-selection form (choose users to see their total hours logged)
 @app.command("/gethours")
@@ -264,7 +264,7 @@ def get_logged_hours(ack, body, respond, logger):
         # Add the time logged by each user to the output
         for user in user_sum:
             # Add a custom display name if the user has one set
-            if user[1] != "": display_name = " ("+user[1]+")"
+            display_name = " ("+user[1]+")" if user[1] != "" else ""
             output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
         # Send output to Slack chat and console
         logger.info("\n" + output)
@@ -284,7 +284,6 @@ def log_database(ack, body, respond, command, logger):
         respond(slack_table("Last 30 entries from all users", table))
     else:
         respond("You must be an admin to use this command!")
-
 
 ################################### Other events to be handled ###################################
 
