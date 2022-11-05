@@ -141,3 +141,13 @@ class SQLConnection:
                                   ORDER BY totalMinutes DESC
                                   LIMIT ?;""", (num_users,))
         return(res.fetchall())
+
+    def entries_for_date_table(self, selected_date):
+        # Get all entries by all users
+        res = self.cur.execute("""SELECT u.name, tl.minutes
+                                FROM time_log tl
+                                INNER JOIN user_names u
+                                ON tl.user_id=u.user_id
+                                WHERE tl.selected_date=?;""", (selected_date,))
+        header = ["Name", "Minutes"]
+        return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))

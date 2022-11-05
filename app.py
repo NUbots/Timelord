@@ -158,6 +158,55 @@ def get_logged_hours(ack, body, respond, logger):
         output += "\n" + slack_table(f"{name}", table)
     respond(output)
 
+@app.command("/dateoverview")
+def get_date_overview_form(ack, respond, body):
+    ack()
+    if(is_admin(body['user_id'])):
+        respond(blocks=blocks.dateoverview_form())
+    else:
+        respond("You must be an admin to use this command!")
+
+@app.action("dateoverview_response")
+def get_date_overview(ack, body, respond, logger):
+    ack()
+    selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
+    sqlc = database.SQLConnection()
+    table = sqlc.entries_for_date_table(selected_date)
+    respond("\n" + slack_table(f"All entries for {selected_date}", table))
+
+
+# Get a leaderboard with the top 10 contributors and their hours logged
+@app.command("/leaderboard")
+def leaderboard(ack, body, respond, logger, command):
+    ack()
+    if(is_admin(body['user_id'])):
+        respond(blocks=blocks.dateoverview_form())
+    else:
+        respond("You must be an admin to use this command!")
+
+@app.action("leaderboard_response")
+def leaderboard_response(ack, body, respond, logger, command)
+    try:
+        user_id = body['user_id']
+        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 5 entries
+    except:
+        logger.exception("Invalid user input, failed to fetch leaderboard")
+        respond("*Invalid input!* Please try again! You can get a leaderboard with n users with `/leaderboard n`. If you leave n blank a default value of 10 will be used.")
+
+    if(is_admin(body['user_id'])):
+        sqlc = database.SQLConnection()
+        contributions = sqlc.leaderboard(num_users)
+        output = f"*Top {num_users} contributors*\n"
+        for i in contributions:
+            # Add custom display name if applicable
+            name = i[0]
+            if i[1] != "": name += " ("+i[1]+")"
+            output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+        respond(output)
+    else:
+        respond("You must be an admin to use this command!")
+
+
 ################################### Commands without forms ###################################
 
 @app.command("/help")
@@ -235,29 +284,6 @@ def log_database(ack, body, respond, command, logger):
     else:
         respond("You must be an admin to use this command!")
 
-# Get a leaderboard with the top 10 contributors and their hours logged
-@app.command("/leaderboard")
-def leaderboard(ack, body, respond, logger, command):
-    ack()
-    try:
-        user_id = body['user_id']
-        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 5 entries
-    except:
-        logger.exception("Invalid user input, failed to fetch leaderboard")
-        respond("*Invalid input!* Please try again! You can get a leaderboard with n users with `/leaderboard n`. If you leave n blank a default value of 10 will be used.")
-
-    if(is_admin(body['user_id'])):
-        sqlc = database.SQLConnection()
-        contributions = sqlc.leaderboard(num_users)
-        output = f"*Top {num_users} contributors*\n"
-        for i in contributions:
-            # Add custom display name if applicable
-            name = i[0]
-            if i[1] != "": name += " ("+i[1]+")"
-            output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
-        respond(output)
-    else:
-        respond("You must be an admin to use this command!")
 
 ################################### Other events to be handled ###################################
 

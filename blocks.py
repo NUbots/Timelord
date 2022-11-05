@@ -221,6 +221,88 @@ def date_constraint():
     print("got it")
     return output
 
+# Time logging form blocks
+def dateoverview_form():
+    output = [
+        {
+            # Date picker
+            "type": "input",
+            "block_id": "date_select_block",
+            "element": {
+                "type": "datepicker",
+                "initial_date": currentDate().strftime("%Y-%m-%d"),
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select a date",
+                },
+                "action_id": "date_select_input"
+            },
+            "label": {
+                "type": "plain_text",
+                "text": "Date to log",
+            }
+        },
+        {
+            # Submit button
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Click to submit and log hours"
+            },
+            "accessory": {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Submit",
+                },
+                "value": "placeholder",
+                "action_id": "dateoverview_response"
+            }
+        }
+    ]
+    return output
+
+def leaderboard_form():
+    output = [
+        {
+            # Date picker
+            "type": "input",
+            "block_id": "date_select_block",
+            "element": {
+                "type": "datepicker",
+                "initial_date": currentDate().strftime("%Y-%m-%d"),
+                "placeholder": {
+                    "type": "plain_text",
+                    "text": "Select a date",
+                },
+                "action_id": "date_select_input"
+            },
+            "label": {
+                "type": "plain_text",
+                "text": "Date to log",
+            }
+        },
+        {
+            # Submit button
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Click to submit and log hours"
+            },
+            "accessory": {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Submit",
+                },
+                "value": "placeholder",
+                "action_id": "dateoverview_response"
+            }
+        }
+    ]
+
+
+
 # def time_constraint_form(response_endpoint):
 #     # Let the user choose a date constraint - the time_constraint_response event listener will run the function at
 #     # response_endpoint with the given date constraint
