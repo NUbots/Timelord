@@ -36,13 +36,14 @@ def parse_date_constraint(constraint):
     # Requires python 3.10 or higher
     match constraint:
         case "today": 
-            return today.strftime('%Y-%m-%d')
+            # This isn't great but it probably won't be used often
+            return date_range(today.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
         case "this week":
             # Move back n days where n is the weekday number (so we reach the start of the week (Monday is 0, Sunday is 6))
-            return date_range(today - timedelta(days=today.weekday()), today).strftime('%Y-%m-%d')
+            return date_range((today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
         case "this month":
             # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
-            return date_range(today.replace(day=1), today).strftime('%Y-%m-%d')
+            return date_range((today.replace(day=1)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
         case "all time":
             # Empty string - SQLite uses strings to store dates and this is the smallest possible string lexicographically
             return None
@@ -88,7 +89,6 @@ def submit_timelog_form(ack, respond, body, logger):
 
         logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
 
-        # Open an SQL connection and add entry to database containing user input
         sqlc = database.SQLConnection()
         sqlc.insert_timelog_entry(user_id, selected_date, minutes)
 

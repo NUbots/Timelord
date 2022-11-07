@@ -140,9 +140,9 @@ class SQLConnection:
                  ON u.user_id=tl.user_id """
         params = []
         if date_constraint:
-            query += "WHERE selected_date > ? AND selected_date < ? "
-            params.append(date_constraint.start_date.date())
-            params.append(date_constraint.end_date.date())
+            query += "WHERE selected_date >= ? AND selected_date <= ? "
+            params.append(date_constraint.start_date)
+            params.append(date_constraint.end_date)
         # query += """ """ # Close the WHERE clause
         query += """GROUP BY u.name, u.display_name
                     ORDER BY totalMinutes DESC """
