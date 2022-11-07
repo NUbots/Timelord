@@ -21,6 +21,22 @@ num_entries_block = {
     }
 }
 
+num_users_block = {
+    # Number of entries
+    "type": "input",
+    "block_id": "num_users_block",
+    "element": { 
+        "type": "plain_text_input",
+        "action_id": "num_users_input",
+        "initial_value": "10"
+    },
+    "label": {
+        "type": "plain_text",
+        "text": "Number of users to return",
+    }
+}
+
+
 hours_input_block = {
     # Hours input
     "type": "input",
@@ -98,7 +114,7 @@ date_constraint_block = {
                 "value": "this month"
             }
         ],
-        "action_id": "time_constraint_input"
+        "action_id": "date_constraint_input"
     },
     "label": {
         "type": "plain_text",
@@ -166,7 +182,7 @@ def getusertables_form():
     return [
         user_select_block,
         num_entries_block,
-        date_constraint_block(),
+        date_constraint_block,
         submit_button_block("getusertables_response")
     ]
 
@@ -178,6 +194,7 @@ def dateoverview_form():
 
 def leaderboard_form():
     return [
-        date_select_block(),
+        num_users_block,
+        date_constraint_block,
         submit_button_block("leaderboard_response")
     ]

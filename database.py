@@ -68,6 +68,7 @@ class SQLConnection:
 
         today = datetime.date.today().strftime('%Y-%m-%d')
 
+        # Get and increment the entry number
         res = self.cur.execute("""SELECT MAX(entry_num)
                                   FROM time_log
                                   WHERE user_id = ?;""", (user_id,))
@@ -76,7 +77,7 @@ class SQLConnection:
             entry_num = 1
         else:
             entry_num += 1
-
+        
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL);", (entry_num, user_id, today, selected_date, minutes ))
 
     def remove_last_entry(self, user_id):
@@ -98,6 +99,7 @@ class SQLConnection:
 
     # Get the last n entries by user as a table
     def last_entries_table(self, user_id, num_entries, start_date = ""):
+        print(start_date)
         res = self.cur.execute("""SELECT entry_num, entry_date, selected_date, minutes
                                 FROM time_log 
                                 WHERE user_id = ?
@@ -131,23 +133,34 @@ class SQLConnection:
         return(res.fetchall())
 
     # Get the top 10 contributors
-    def leaderboard(self, num_users):
-        # Returns a tuple of tuples containing the name of the user, a custom dispay name (or empty string), and the number of minutes logged
-        res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
-                                  FROM user_names u
-                                  INNER JOIN time_log tl
-                                  ON u.user_id=tl.user_id
-                                  GROUP BY u.name, u.user_id, u.display_name
-                                  ORDER BY totalMinutes DESC
-                                  LIMIT ?;""", (num_users,))
+    def leaderboard(self, num_users = None, date_constraint = None):
+        query = """SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
+                 FROM user_names u
+                 INNER JOIN time_log tl
+                 ON u.user_id=tl.user_id """
+        params = []
+        if date_constraint:
+            query += "WHERE selected_date > ? AND selected_date < ? "
+            params.append(date_constraint.start_date.date())
+            params.append(date_constraint.end_date.date())
+        # query += """ """ # Close the WHERE clause
+        query += """GROUP BY u.name, u.display_name
+                    ORDER BY totalMinutes DESC """
+        if num_users:
+            query += "LIMIT ?"
+            params.append(num_users)
+        print(query)
+        print(params)
+        res = self.cur.execute(query, params)
         return(res.fetchall())
 
     def entries_for_date_table(self, selected_date):
-        # Get all entries by all users
+        # Get all entries by all users7
         res = self.cur.execute("""SELECT u.name, tl.minutes
                                 FROM time_log tl
                                 INNER JOIN user_names u
                                 ON tl.user_id=u.user_id
                                 WHERE tl.selected_date=?;""", (selected_date,))
         header = ["Name", "Minutes"]
+        print(selected_date)
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))

@@ -6,6 +6,7 @@ from slack_sdk.errors import SlackApiError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from pathlib import Path
+from collections import namedtuple
 
 import sys
 if not sys.version_info >= (3, 10):
@@ -26,21 +27,25 @@ logging.basicConfig(level=logging.INFO)
 def slack_table(title, message):
     return(f"*{title}*\n```{message}```")
 
+date_range = namedtuple("date_range", ["start_date", "end_date"])
+
+# Convert date constraint from form to YYYY-MM-DD string for database query
 def parse_date_constraint(constraint):
     today = datetime.today()
+    print(today.weekday())
     # Requires python 3.10 or higher
     match constraint:
         case "today": 
-            return today
+            return today.strftime('%Y-%m-%d')
         case "this week":
             # Move back n days where n is the weekday number (so we reach the start of the week (Monday is 0, Sunday is 6))
-            return today - timedelta(days = today.weekday())
+            return date_range(today - timedelta(days=today.weekday()), today).strftime('%Y-%m-%d')
         case "this month":
             # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
-            return today.replace(day=1)
+            return date_range(today.replace(day=1), today).strftime('%Y-%m-%d')
         case "all time":
             # Empty string - SQLite uses strings to store dates and this is the smallest possible string lexicographically
-            return ""
+            return None
 
 ################################### User validation ###################################
 
@@ -140,7 +145,7 @@ def get_logged_hours(ack, body, respond, logger):
     print(body['state']['values']['date_constraint_block'])
     users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
     # If 'All time' is chosen start_date will be None
-    start_date_text = body['state']['values']['date_constraint_block']['time_constraint_input']['selected_option']['value']
+    start_date_text = body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value']
     start_date = parse_date_constraint(start_date_text)
 
     try:
@@ -177,7 +182,7 @@ def get_date_overview(ack, body, respond, logger):
 
 # Get a leaderboard with the top 10 contributors and their hours logged
 @app.command("/leaderboard")
-def leaderboard(ack, body, respond, logger, command):
+def leaderboard(ack, body, respond):
     ack()
     if(is_admin(body['user_id'])):
         respond(blocks=blocks.leaderboard_form())
@@ -187,26 +192,20 @@ def leaderboard(ack, body, respond, logger, command):
 @app.action("leaderboard_response")
 def leaderboard_response(ack, body, respond, logger, command):
     ack()
-    try:
-        user_id = body['user_id']
-        num_users = int(command['text']) if command['text'] != "" else 10 # Defaults to 10 entries
-    except:
-        logger.exception("Invalid user input, failed to fetch leaderboard")
-        respond("*Invalid input!* Please try again! You can get a leaderboard with n users with `/leaderboard n`. If you leave n blank a default value of 10 will be used.")
+    print(body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value'])
+    date_constraint = parse_date_constraint(body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value'])
+    num_users = body['state']['values']['num_users_block']['num_users_input']['value']
+    print(date_constraint)
 
-    if(is_admin(body['user_id'])):
-        sqlc = database.SQLConnection()
-        contributions = sqlc.leaderboard(num_users)
-        output = f"*Top {num_users} contributors*\n"
-        for i in contributions:
-            # Add custom display name if applicable
-            name = i[0]
-            if i[1] != "": name += " ("+i[1]+")"
-            output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
-        respond(output)
-    else:
-        respond("You must be an admin to use this command!")
-
+    sqlc = database.SQLConnection()
+    contributions = sqlc.leaderboard(num_users, date_constraint) if date_constraint else sqlc.leaderboard(num_users) 
+    output = f"*Top {num_users} contributors*\n"
+    for i in contributions:
+        # Add custom display name if applicable
+        name = i[0]
+        if i[1] != "": name += " ("+i[1]+")"
+        output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+    respond(output)
 
 ################################### Commands without forms ###################################
 
@@ -320,7 +319,6 @@ def select_date(ack, body, logger):
 def handle_some_action(ack, body, logger):
     ack()
     logger.debug(body)
-
 
 if __name__ == "__main__":
     # Create tables
