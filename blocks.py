@@ -194,7 +194,6 @@ def dateoverview_form():
 
 def leaderboard_form():
     return [
-        num_users_block,
         date_constraint_block,
         submit_button_block("leaderboard_response")
     ]

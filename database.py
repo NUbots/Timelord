@@ -120,20 +120,9 @@ class SQLConnection:
             return(minutes)
         else:
             return(0)
-
-    # Get total minutes logged by all users
-    def all_time_sums(self):
-        # If the user has entries in the database return their total time logged
-        res = self.cur.execute("""SELECT u.name, u.display_name, SUM(tl.minutes) AS time_sum
-                                  FROM time_log tl
-                                  INNER JOIN user_names u
-                                  ON u.user_id=tl.user_id
-                                  GROUP BY u.name, u.display_name
-                                  ORDER BY time_sum;""")
-        return(res.fetchall())
-
+            
     # Get the top 10 contributors
-    def leaderboard(self, num_users = None, date_constraint = None):
+    def leaderboard(self, date_constraint = None):
         query = """SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
                  FROM user_names u
                  INNER JOIN time_log tl
@@ -143,14 +132,8 @@ class SQLConnection:
             query += "WHERE selected_date >= ? AND selected_date <= ? "
             params.append(date_constraint.start_date)
             params.append(date_constraint.end_date)
-        # query += """ """ # Close the WHERE clause
         query += """GROUP BY u.name, u.display_name
                     ORDER BY totalMinutes DESC """
-        if num_users:
-            query += "LIMIT ?"
-            params.append(num_users)
-        print(query)
-        print(params)
         res = self.cur.execute(query, params)
         return(res.fetchall())
 

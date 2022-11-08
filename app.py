@@ -198,7 +198,7 @@ def leaderboard_response(ack, body, respond, logger, command):
     print(date_constraint)
 
     sqlc = database.SQLConnection()
-    contributions = sqlc.leaderboard(num_users, date_constraint) if date_constraint else sqlc.leaderboard(num_users) 
+    contributions = sqlc.leaderboard(date_constraint) if date_constraint else sqlc.leaderboard(date_constraint) 
     output = f"*Top {num_users} contributors*\n"
     for i in contributions:
         # Add custom display name if applicable
@@ -221,7 +221,6 @@ def help(ack, respond, body, command):
         output += """
     \n*Admin Commands:*
     */gethours* Select users and get their total hours logged
-    */allusersums* Get the total hours logged by all users
     */getusertables* Select users to see their last few entries
     */allusertable* Responds with the last 30 entries from all users
     */leaderboard n* Responds with the top n contributors and their total time logged (defaults to 10)"""
@@ -251,25 +250,6 @@ def delete_last(ack, respond, body, command):
     sqlc = database.SQLConnection()
     sqlc.remove_last_entry(body['user_id'])
     respond("Last entry removed!")
-
-# Respond with the total time logged by all users
-@app.command("/allusersums")
-def get_logged_hours(ack, body, respond, logger):
-    ack()
-    if(is_admin(body['user_id'])):
-        sqlc = database.SQLConnection()
-        user_sum = sqlc.all_time_sums()
-        output = ""
-        # Add the time logged by each user to the output
-        for user in user_sum:
-            # Add a custom display name if the user has one set
-            display_name = " ("+user[1]+")" if user[1] != "" else ""
-            output += f"*{user[0]}*{display_name}: {int(user[2]/60)} hours and {int(user[2]%60)} minutes\n"
-        # Send output to Slack chat and console
-        logger.info("\n" + output)
-        respond(output)
-    else:
-        respond("You must be an admin to use this command!")
 
 # Respond with last 30 hours entered by all users
 @app.command("/allusertable")
