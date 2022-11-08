@@ -37,13 +37,13 @@ def parse_date_constraint(constraint):
     match constraint:
         case "today": 
             # This isn't great but it probably won't be used often
-            return date_range(today.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+            return date_range(today, today)
         case "this week":
             # Move back n days where n is the weekday number (so we reach the start of the week (Monday is 0, Sunday is 6))
-            return date_range((today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+            return date_range((today - timedelta(days=today.weekday())), today)
         case "this month":
             # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
-            return date_range((today.replace(day=1)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+            return date_range((today.replace(day=1)), today)
         case "all time":
             # Empty string - SQLite uses strings to store dates and this is the smallest possible string lexicographically
             return None
@@ -176,6 +176,7 @@ def get_date_overview(ack, body, respond, logger):
     ack()
     selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
     sqlc = database.SQLConnection()
+    print(selected_date)
     table = sqlc.entries_for_date_table(selected_date)
     respond("\n" + slack_table(f"All entries for {selected_date}", table))
 

@@ -120,7 +120,7 @@ class SQLConnection:
             return(minutes)
         else:
             return(0)
-            
+
     # Get the top 10 contributors
     def leaderboard(self, date_constraint = None):
         query = """SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
@@ -130,8 +130,8 @@ class SQLConnection:
         params = []
         if date_constraint:
             query += "WHERE selected_date >= ? AND selected_date <= ? "
-            params.append(date_constraint.start_date)
-            params.append(date_constraint.end_date)
+            params.append(date_constraint.start_date.strftime('%Y-%m-%d'))
+            params.append(date_constraint.end_date.strftime('%Y-%m-%d'))
         query += """GROUP BY u.name, u.display_name
                     ORDER BY totalMinutes DESC """
         res = self.cur.execute(query, params)
@@ -145,5 +145,4 @@ class SQLConnection:
                                 ON tl.user_id=u.user_id
                                 WHERE tl.selected_date=?;""", (selected_date,))
         header = ["Name", "Minutes"]
-        print(selected_date)
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
