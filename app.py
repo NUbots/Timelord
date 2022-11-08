@@ -142,24 +142,16 @@ def get_user_hours_form(ack, respond, body, command):
 @app.action("getusertables_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
-    print(body['state']['values']['date_constraint_block'])
     users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
-    # If 'All time' is chosen start_date will be None
-    start_date_text = body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value']
-    start_date = parse_date_constraint(start_date_text)
-
     try:
         num_entries = re.findall(r'\d+', body['state']['values']['num_entries_block']['num_entries_input']['value'])[0]
     except:
         respond('Invalid input! Please try again.')
-
     sqlc = database.SQLConnection()
-    output = f"{num_entries} most recent entries "
-    if (start_date != ""):
-        output += start_date_text
+    output = ""
     for user in users:
         name = user_name(user)
-        table = sqlc.last_entries_table(user, num_entries, start_date)
+        table = sqlc.last_entries_table(user, num_entries)
         output += "\n" + slack_table(f"{name}", table)
     respond(output)
 
@@ -176,7 +168,6 @@ def get_date_overview(ack, body, respond, logger):
     ack()
     selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
     sqlc = database.SQLConnection()
-    print(selected_date)
     table = sqlc.entries_for_date_table(selected_date)
     respond("\n" + slack_table(f"All entries for {selected_date}", table))
 
@@ -193,14 +184,11 @@ def leaderboard(ack, body, respond):
 @app.action("leaderboard_response")
 def leaderboard_response(ack, body, respond, logger, command):
     ack()
-    print(body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value'])
-    date_constraint = parse_date_constraint(body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value'])
-    num_users = body['state']['values']['num_users_block']['num_users_input']['value']
-    print(date_constraint)
-
+    date_constraint_text = body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value']
+    date_constraint = parse_date_constraint(date_constraint_text)
     sqlc = database.SQLConnection()
     contributions = sqlc.leaderboard(date_constraint) if date_constraint else sqlc.leaderboard(date_constraint) 
-    output = f"*Top {num_users} contributors*\n"
+    output = f"*All contributors for {date_constraint_text} ranked by hours logged*\n"
     for i in contributions:
         # Add custom display name if applicable
         name = i[0]

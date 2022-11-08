@@ -182,7 +182,6 @@ def getusertables_form():
     return [
         user_select_block,
         num_entries_block,
-        date_constraint_block,
         submit_button_block("getusertables_response")
     ]
 
