@@ -16,7 +16,7 @@ def create_log_table():
                         minutes INTEGER NOT NULL,
                         project TEXT,
 
-                        PRIMARY KEY (entry_num, user_id));""")
+                        PRIMARY KEY (entry_num, user_id)) """)
     con.close()
 
 def create_user_table():
@@ -27,7 +27,7 @@ def create_user_table():
                         name TEXT NOT NULL,
                         display_name TEXT,
 
-                        PRIMARY KEY (user_id));""")
+                        PRIMARY KEY (user_id)) """)
 
 
 class SQLConnection:
@@ -45,7 +45,7 @@ class SQLConnection:
     def validate_user(self, user_id, name, display_name):
         self.cur.execute("""INSERT INTO user_names (user_id, name, display_name)
                             VALUES (?, ?, ?)
-                            ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=?;""", (user_id, name, display_name, name, display_name))
+                            ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=? """, (user_id, name, display_name, name, display_name))
 
     # Get user's full name and custom display name from database
     def user_name(self, user_id):
@@ -71,21 +71,21 @@ class SQLConnection:
         # Get and increment the entry number
         res = self.cur.execute("""SELECT MAX(entry_num)
                                   FROM time_log
-                                  WHERE user_id = ?;""", (user_id,))
+                                  WHERE user_id = ? """, (user_id,))
         entry_num = res.fetchone()[0]
         if (entry_num == None):
             entry_num = 1
         else:
             entry_num += 1
         
-        self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL);", (entry_num, user_id, today, selected_date, minutes ))
+        self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?, NULL) ", (entry_num, user_id, today, selected_date, minutes ))
 
     def remove_last_entry(self, user_id):
         self.cur.execute("""DELETE FROM time_log
                             WHERE (user_id, entry_num) IN (
                                 SELECT user_id, entry_num FROM time_log
                                 WHERE user_id = ? 
-                                ORDER BY entry_num DESC LIMIT 1);""", (user_id,))
+                                ORDER BY entry_num DESC LIMIT 1) """, (user_id,))
 
     # Get all entries by all users
     def timelog_table(self):
@@ -93,28 +93,32 @@ class SQLConnection:
                                   FROM time_log tl
                                   INNER JOIN user_names u
                                   ON tl.user_id=u.user_id
-                                  LIMIT 30;""")
+                                  LIMIT 30 """)
         header = ["Name", "Entry Number", "Date Submitted", "Date of Log", "Minutes"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get the last n entries by user as a table
-    def last_entries_table(self, user_id, num_entries, start_date = ""):
-        print(start_date)
+    def last_entries_table(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT entry_num, entry_date, selected_date, minutes
                                 FROM time_log 
                                 WHERE user_id = ?
-                                AND selected_date > ?
                                 ORDER BY entry_num DESC
-                                LIMIT ?;""", (user_id, start_date, num_entries))
+                                LIMIT ? """, (user_id, num_entries))
         header = ["Entry Number", "Date Submitted", "Date of Log", "Minutes"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))
 
     # Get total minutes logged by user with given user_id
-    def time_sum(self, user_id):
+    def time_sum(self, user_id, date_constraint = None):
         # If the user has entries in the database return their total time logged, otherwise return 0
-        res = self.cur.execute("""SELECT SUM(minutes)
-                                   FROM time_log
-                                   WHERE user_id = ?;""", (user_id,))
+        query = """SELECT SUM(minutes)
+                   FROM time_log
+                   WHERE user_id = ? """
+        params = [user_id]
+        if date_constraint:
+            query += "AND selected_date >= ? AND selected_date <= ? "
+            params.append(date_constraint.start_date.strftime('%Y-%m-%d'))
+            params.append(date_constraint.end_date.strftime('%Y-%m-%d'))
+        res = self.cur.execute(query, params)
         minutes = res.fetchone()[0]
         if (minutes != None):
             return(minutes)
@@ -143,6 +147,6 @@ class SQLConnection:
                                 FROM time_log tl
                                 INNER JOIN user_names u
                                 ON tl.user_id=u.user_id
-                                WHERE tl.selected_date=?;""", (selected_date,))
+                                WHERE tl.selected_date=? """, (selected_date,))
         header = ["Name", "Minutes"]
         return(tabulate(res.fetchall(), header, tablefmt="simple_grid"))

@@ -32,7 +32,6 @@ date_range = namedtuple("date_range", ["start_date", "end_date"])
 # Convert date constraint from form to YYYY-MM-DD string for database query
 def parse_date_constraint(constraint):
     today = datetime.today()
-    print(today.weekday())
     # Requires python 3.10 or higher
     match constraint:
         case "today": 
@@ -222,7 +221,7 @@ def user_entries(ack, respond, body, command, logger):
     try:
         user_id = body['user_id']
         name = user_name(user_id)
-        num_entries = int(command['text']) if command['text'] != "" else 5 # Defaults to 5 entries
+        num_entries = int(command['text']) if command['text'] != "" else 10 # Defaults to 10 entries
     except:
         logger.exception("Invalid user input, failed to create time log entry")
         respond("*Invalid input!* Please try again! You can generate a table with your last n entries with `/myentries n`. If you leave n blank a default value of 5 will be used.")
@@ -230,7 +229,13 @@ def user_entries(ack, respond, body, command, logger):
     sqlc = database.SQLConnection()
     table = sqlc.last_entries_table(user_id, num_entries)
 
-    respond(slack_table(f"{num_entries} most recent entries by {name}", table))
+    yearly_minutes = sqlc.time_sum(user_id, date_constraint=parse_date_constraint("this year"))
+    weekly_minutes = sqlc.time_sum(user_id, date_constraint=parse_date_constraint("this week"))
+
+    output = f"\n*Hours logged this year*: {int(yearly_minutes/60)} hours and {int(yearly_minutes%60)} minutes"
+    output += f"\n*Hours logged this week:* {int(weekly_minutes/60)} hours and {int(weekly_minutes%60)} minutes\n\n\n"
+    output += slack_table(f"Your {num_entries} most recent entries", table)
+    respond(output)
 
 # Delete the last entry made by the user issuing the command
 @app.command("/deletelast")
