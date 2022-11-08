@@ -7,7 +7,7 @@ def currentDate():
     return datetime.now()
 
 # Time logging form blocks
-def log_form():
+def timelog_form():
     output = [
         {
             # Horizontal line
@@ -16,7 +16,7 @@ def log_form():
         {
             # Date picker
             "type": "input",
-            "block_id": "date_input",
+            "block_id": "date_select_block",
             "element": {
                 "type": "datepicker",
                 # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings - in this format lexicographical order is identical to chronological order.
@@ -25,7 +25,7 @@ def log_form():
                     "type": "plain_text",
                     "text": "Select a date",
                 },
-                "action_id": "select_date"
+                "action_id": "date_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -35,10 +35,10 @@ def log_form():
         {
             # Hours input
             "type": "input",
-            "block_id": "hours_input",
+            "block_id": "hours_block",
             "element": {
                 "type": "plain_text_input",
-                "action_id": "select_hours"
+                "action_id": "hours_input"
             },
             "label": {
                 "type": "plain_text",
@@ -59,25 +59,25 @@ def log_form():
                     "text": "Submit",
                 },
                 "value": "placeholder",
-                "action_id": "timelog_submit"
+                "action_id": "timelog_response"
             }
         }
     ]
     return output
 
 # User selection form for hour sum
-def user_hours_selection():
+def gethours_form():
     output = [
         {
             "type": "input",
-            "block_id": "user_input",
+            "block_id": "user_select_block",
             "element": {
                 "type": "multi_users_select",
                 "placeholder": {
                     "type": "plain_text",
                     "text": "Select users",
                 },
-                "action_id": "user_added"
+                "action_id": "user_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -93,7 +93,7 @@ def user_hours_selection():
                         "type": "plain_text",
                         "text": "Confirm Selection",
                     },
-                    "action_id": "get_user_hours"
+                    "action_id": "gethours_response"
                 }
             ]
         }
@@ -101,18 +101,18 @@ def user_hours_selection():
     return output
 
 # User selection form for table
-def user_table_selection():
+def getusertables_form():
     output = [
         {
             "type": "input",
-            "block_id": "user_input",
+            "block_id": "user_select_block",
             "element": {
                 "type": "multi_users_select",
                 "placeholder": {
                     "type": "plain_text",
                     "text": "Select users",
                 },
-                "action_id": "user_added"
+                "action_id": "user_select_input"
             },
             "label": {
                 "type": "plain_text",
@@ -122,10 +122,10 @@ def user_table_selection():
         {
             # Number of entries
             "type": "input",
-            "block_id": "num_entries",
+            "block_id": "num_entries_block",
             "element": {
                 "type": "plain_text_input",
-                "action_id": "select_num_entries"
+                "action_id": "num_entries_input"
             },
             "label": {
                 "type": "plain_text",
@@ -141,7 +141,7 @@ def user_table_selection():
                         "type": "plain_text",
                         "text": "Confirm Selection",
                     },
-                    "action_id": "get_user_table"
+                    "action_id": "getusertables_response"
                 },
             ]
         }
