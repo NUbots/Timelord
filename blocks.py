@@ -78,7 +78,7 @@ date_constraint_block = {
                 "type": "plain_text",
                 "text": "This year",
             },
-            "value": "This year"
+            "value": "this year"
         },
         "placeholder": {
             "type": "plain_text",
@@ -90,7 +90,7 @@ date_constraint_block = {
                     "type": "plain_text",
                     "text": "This year",
                 },
-                "value": "This year"
+                "value": "this year"
             },
             {
                 "text": {

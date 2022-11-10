@@ -186,14 +186,17 @@ def leaderboard_response(ack, body, respond, logger, command):
     date_constraint_text = body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value']
     date_constraint = parse_date_constraint(date_constraint_text)
     sqlc = database.SQLConnection()
-    contributions = sqlc.leaderboard(date_constraint) if date_constraint else sqlc.leaderboard(date_constraint) 
-    output = f"*All contributors for {date_constraint_text} ranked by hours logged*\n"
-    for i in contributions:
-        # Add custom display name if applicable
-        name = i[0]
-        if i[1] != "": name += " ("+i[1]+")"
-        output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
-    respond(output)
+    contributions = sqlc.leaderboard(date_constraint)
+    if contributions():
+        output = f"*All contributors for {date_constraint_text} ranked by hours logged*\n"
+        for i in contributions:
+            # Add custom display name if applicable
+            name = i[0]
+            if i[1] != "": name += " ("+i[1]+")"
+            output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+        respond(output)
+    else:
+        respond(f"No hours logged {date_constraint_text}!")
 
 ################################### Commands without forms ###################################
 
