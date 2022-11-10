@@ -292,7 +292,7 @@ def select_date(ack, body, logger):
     ack()
     logger.debug(body)
 
-@app.action("time_constraint_input")
+@app.action("date_constraint_input")
 def handle_some_action(ack, body, logger):
     ack()
     logger.debug(body)
