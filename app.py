@@ -23,6 +23,10 @@ slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 # Set up logging for info messages
 logging.basicConfig(level=logging.INFO)
 
+def send_instant_message(user_id, message):
+    conversation = slack_web_client.conversations_open(users=user_id)
+    slack_web_client.chat_postMessage(channel=conversation["channel"]["id"], text=message)
+
 ################################### User validation ###################################
 
 # Get user's full name and custom display name (if applicable) from database
@@ -299,6 +303,13 @@ def handle_some_action(ack, body, logger):
     ack()
     logger.debug(body)
 
+def notify_inactive_users():
+    sqlc = database.SQLConnection()
+    users = sqlc.inactive_users()
+    if users:
+        for i in users:
+            send_instant_message(i, "You have not logged any hours in the last 7 days. Please log your hours as soon as possible!")
+
 if __name__ == "__main__":
     # Create tables
     database.create_log_table()
@@ -306,4 +317,6 @@ if __name__ == "__main__":
     # Check all users in workspace against users in database
     validate_all_users()
     # Open a WebSocket connection with Slack
+    sqlc = database.SQLConnection()
+    notify_inactive_users()
     SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()

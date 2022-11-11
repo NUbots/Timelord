@@ -1,5 +1,5 @@
 import sqlite3
-import datetime
+from datetime import date, timedelta
 from tabulate import tabulate
 
 db_file = "timelord.db"
@@ -65,7 +65,7 @@ class SQLConnection:
         return(name)
 
     def insert_timelog_entry(self, user_id, selected_date, minutes, summary):
-        today = datetime.date.today().strftime('%Y-%m-%d')
+        today = date.today().strftime('%Y-%m-%d')
 
         # Get and increment the entry number
         res = self.cur.execute("""SELECT MAX(entry_num)
@@ -145,3 +145,13 @@ class SQLConnection:
                                 ON tl.user_id=u.user_id
                                 WHERE tl.selected_date=? """, (selected_date,))
         return(res.fetchall())
+
+    def inactive_users(self):
+        last_week = date.today() - timedelta(days=7)
+        # Since this is an inner join, users who have never logged hours won'be be included
+        res = self.cur.execute("""SELECT u.user_id
+                                  FROM user_names u
+                                  INNER JOIN time_log tl
+                                  ON u.user_id=tl.user_id
+                                  WHERE ? > (SELECT MAX(selected_date)
+                                             FROM time_log)""", (last_week,))
