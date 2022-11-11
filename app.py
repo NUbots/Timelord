@@ -23,30 +23,6 @@ slack_web_client = WebClient(token=os.environ.get("SLACK_BOT_TOKEN"))
 # Set up logging for info messages
 logging.basicConfig(level=logging.INFO)
 
-# Use the slack code block format to force monospace font (without this the table rows and lines will be missaligned)
-def slack_table(title, message):
-    return(f"*{title}*\n```{message}```")
-
-date_range = namedtuple("date_range", ["start_date", "end_date"])
-
-# Convert date constraint from form to YYYY-MM-DD string for database query
-def parse_date_constraint(constraint):
-    today = datetime.today()
-    # Requires python 3.10 or higher
-    match constraint:
-        case "today": 
-            # This isn't great but it probably won't be used often
-            return date_range(today, today)
-        case "this week":
-            # Move back n days where n is the weekday number (so we reach the start of the week (Monday is 0, Sunday is 6))
-            return date_range((today - timedelta(days=today.weekday())), today)
-        case "this month":
-            # Replace the day part of the date with 1 (2022-11-23 becomes 2022-11-01)
-            return date_range((today.replace(day=1)), today)
-        case "all time":
-            # Empty string - SQLite uses strings to store dates and this is the smallest possible string lexicographically
-            return None
-
 ################################### User validation ###################################
 
 # Get user's full name and custom display name (if applicable) from database
@@ -80,8 +56,9 @@ def submit_timelog_form(ack, respond, body, logger):
     ack()
     user_id = body['user']['id']
     # Get user-selected date, hours, and minutes from form
-    selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
+    selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
     time_input = re.findall(r'\d+', body['state']['values']['hours_block']['hours_input']['value']) # creates list containing two strings (hours and minutes)
+    summary = body['state']['values']['text_field_block']['text_input']['value']
 
     try:
         minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
@@ -89,7 +66,7 @@ def submit_timelog_form(ack, respond, body, logger):
         logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
 
         sqlc = database.SQLConnection()
-        sqlc.insert_timelog_entry(user_id, selected_date, minutes)
+        sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
 
         respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
 
@@ -129,16 +106,16 @@ def get_logged_hours(ack, body, respond, logger):
     respond(output)
 
 # Get user-selection form (choose users to see tables for their logged hours per date)
-@app.command("/getusertables")
+@app.command("/getentries")
 def get_user_hours_form(ack, respond, body, command):
     ack()
     if(is_admin(body['user_id'])):
-        respond(blocks=blocks.getusertables_form())
+        respond(blocks=blocks.getentries_form())
     else:
         respond("You must be an admin to use this command!")
 
 # Form response: log tables for all users specified
-@app.action("getusertables_response")
+@app.action("getentries_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
     users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
@@ -149,9 +126,11 @@ def get_logged_hours(ack, body, respond, logger):
     sqlc = database.SQLConnection()
     output = ""
     for user in users:
-        name = user_name(user)
-        table = sqlc.last_entries_table(user, num_entries)
-        output += "\n" + slack_table(f"{name}", table)
+        output += f"\n\n\n*{user_name(user)}*"
+        entries = sqlc.last_entries_list(user, num_entries)
+        for i in entries:
+            output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
+            output += f"_{i[3]}_" if i[3] else "No summary given"
     respond(output)
 
 @app.command("/dateoverview")
@@ -165,10 +144,16 @@ def get_date_overview_form(ack, respond, body):
 @app.action("dateoverview_response")
 def get_date_overview(ack, body, respond, logger):
     ack()
-    selected_date = datetime.strptime(body['state']['values']['date_select_block']['date_select_input']['selected_date'], "%Y-%m-%d").date()
+    selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
     sqlc = database.SQLConnection()
-    table = sqlc.entries_for_date_table(selected_date)
-    respond("\n" + slack_table(f"All entries for {selected_date}", table))
+    entries = sqlc.entries_for_date_list(selected_date)
+    output = f"*Overview for {selected_date}*"
+    for i in entries:
+        name = i[0]
+        if i[1] != "": name += " ("+i[1]+")"
+        output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
+        output += f"_{i[3]}_" if i[3] else "No summary given"
+    respond(output)
 
 
 # Get a leaderboard with the top 10 contributors and their hours logged
@@ -183,12 +168,12 @@ def leaderboard(ack, body, respond):
 @app.action("leaderboard_response")
 def leaderboard_response(ack, body, respond, logger, command):
     ack()
-    date_constraint_text = body['state']['values']['date_constraint_block']['date_constraint_input']['selected_option']['value']
-    date_constraint = parse_date_constraint(date_constraint_text)
+    start_date = body['state']['values']['date_select_block']['date_select_input_end']['selected_date']
+    end_date = body['state']['values']['date_select_block']['date_select_input_end']['selected_date']
     sqlc = database.SQLConnection()
-    contributions = sqlc.leaderboard(date_constraint)
+    contributions = sqlc.leaderboard(start_date, end_date)
     if contributions():
-        output = f"*All contributors for {date_constraint_text} ranked by hours logged*\n"
+        output = f"*All contributors between {start_date} and {end_date} ranked by hours logged*\n"
         for i in contributions:
             # Add custom display name if applicable
             name = i[0]
@@ -196,7 +181,7 @@ def leaderboard_response(ack, body, respond, logger, command):
             output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
         respond(output)
     else:
-        respond(f"No hours logged {date_constraint_text}!")
+        respond(f"No hours logged between {start_date} and {end_date}!")
 
 ################################### Commands without forms ###################################
 
@@ -207,14 +192,15 @@ def help(ack, respond, body, command):
     \n*User Commands:*
     */timelog* Opens a time logging form
     */deletelast* Delete your last entry
-    */myentries n* Get a table with your last n entries (defaults to 5)"""
+    */myentries n* Get your last n entries (defaults to 5)"""
     if(is_admin(body['user_id'])):
         output += """
     \n*Admin Commands:*
     */gethours* Select users and get their total hours logged
-    */getusertables* Select users to see their last few entries
-    */allusertable* Responds with the last 30 entries from all users
-    */leaderboard n* Responds with the top n contributors and their total time logged (defaults to 10)"""
+    */getentries* Select users to see their most recent entries
+    */lastentries n* Responds with the last 30 entries from all users
+    */leaderboard n* Responds with the top n contributors and their total time logged (defaults to 10)
+    */dateoverview* Responds with all entries for a given date"""
     respond(output)
 
 # Respond with a table showing the last n entries made by the user issuing the command
@@ -230,14 +216,18 @@ def user_entries(ack, respond, body, command, logger):
         respond("*Invalid input!* Please try again! You can generate a table with your last n entries with `/myentries n`. If you leave n blank a default value of 5 will be used.")
 
     sqlc = database.SQLConnection()
-    table = sqlc.last_entries_table(user_id, num_entries)
+    entries = sqlc.last_entries_list(user_id, num_entries)
+    today = datetime.today()
+    yearly_minutes = sqlc.time_sum(user_id, today - timedelta(days=365), today)
+    weekly_minutes = sqlc.time_sum(user_id, today - timedelta(days=today.weekday()), today)
 
-    yearly_minutes = sqlc.time_sum(user_id, date_constraint=parse_date_constraint("this year"))
-    weekly_minutes = sqlc.time_sum(user_id, date_constraint=parse_date_constraint("this week"))
+    output = f"\n*Hours logged in the last 365 days*: {int(yearly_minutes/60)} hours and {yearly_minutes%60} minutes"
+    output += f"\n*Hours logged this week:* {int(weekly_minutes/60)} hours and {weekly_minutes%60} minutes"
+    
+    for i in entries:
+        output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
+        output += f"_{i[3]}_" if i[3] else "No summary given"
 
-    output = f"\n*Hours logged this year*: {int(yearly_minutes/60)} hours and {int(yearly_minutes%60)} minutes"
-    output += f"\n*Hours logged this week:* {int(weekly_minutes/60)} hours and {int(weekly_minutes%60)} minutes\n\n\n"
-    output += slack_table(f"Your {num_entries} most recent entries", table)
     respond(output)
 
 # Delete the last entry made by the user issuing the command
@@ -249,15 +239,27 @@ def delete_last(ack, respond, body, command):
     respond("Last entry removed!")
 
 # Respond with last 30 hours entered by all users
-@app.command("/allusertable")
+@app.command("/lastentries")
 def log_database(ack, body, respond, command, logger):
     ack()
     if(is_admin(body['user_id'])):
-        sqlc = database.SQLConnection()
-        table = sqlc.timelog_table()
+        try:
+            num_entries = int(command['text']) if command['text'] != "" else 30 # Defaults to 30 entries
 
-        logger.info("\n" + table)
-        respond(slack_table("Last 30 entries from all users", table))
+            sqlc = database.SQLConnection()
+            entries = sqlc.all_entries_list(num_entries)
+
+            output = f"*Last {num_entries} entries from all users*"
+            for i in entries:
+                name = i[0]
+                if i[1] != "": name += " ("+i[1]+")"
+                output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
+                output += f"_{i[3]}_" if i[3] else "No summary given"
+
+            respond(output)
+        except:
+            logger.exception("Invalid user input, failed to fetch entries")
+            respond("*Invalid input!* Please try again! You can retrieve the last n entries from all users with `/myentries n`. If you leave n blank a default value of 30 will be used.")
     else:
         respond("You must be an admin to use this command!")
 

@@ -1,10 +1,7 @@
 # Slack block kit - https://api.slack.com/block-kit
+# Each slack block used is stored here as a single dictionary object. These are then combined into a list of blocks for each message.
 
-from datetime import datetime, timedelta
-
-# # Get current date for time logging form
-# def currentDate():
-#     return datetime.now()
+from datetime import date, timedelta
 
 num_entries_block = {
     # Number of entries
@@ -19,6 +16,10 @@ num_entries_block = {
         "type": "plain_text",
         "text": "Maximum number of entries to return for each user",
     }
+}
+
+divider = {
+    "type": "divider"
 }
 
 num_users_block = {
@@ -122,16 +123,30 @@ date_constraint_block = {
     }
 }
 
-def date_select_block():
+def text_field_block(label, max_length):
     return {
-        # Date picker
         "type": "input",
-        "block_id": "date_select_block",
+        "block_id": "text_field_block",
+        "element": {
+            "type": "plain_text_input",
+            "action_id": "text_input",
+            "max_length": max_length
+        },
+        "label": {
+            "type": "plain_text",
+            "text": label
+        }
+    }
+
+# Getter functions are used when the block has dynamic content
+def date_select_block(label, initial_date, id_modifier = None):
+    block_id = "date_select_block_" + id_modifier if id_modifier else "date_select_block"
+    return {
+        "type": "input",
+        "block_id": block_id,
         "element": {
             "type": "datepicker",
-            # YYYY-MM-DD format needs to be used here because SQL doesn't have a date data type so these are stored as strings
-            # and in this format lexicographical order is identical to chronological order.
-            "initial_date": datetime.now().strftime("%Y-%m-%d"),
+            "initial_date": initial_date.strftime("%Y-%m-%d"),
             "placeholder": {
                 "type": "plain_text",
                 "text": "Select a date",
@@ -140,42 +155,42 @@ def date_select_block():
         },
         "label": {
             "type": "plain_text",
-            "text": "Date to log",
+            "text": label,
         }
     }
 
 def submit_button_block(form_action):
     return {
-        # Submit button
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": "Confirm and submit"
-        },
-        "accessory": {
-            "type": "button",
-            "text": {
-                "type": "plain_text",
-                "text": "Submit",
-            },
-            "value": "placeholder",
-            "action_id": form_action
-        }
+        "type": "actions",
+        "elements": [
+            {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Confirm",
+                },
+                "value": "confirm",
+                "action_id": form_action
+            }
+        ]
     }
 
 # Time logging form
 def timelog_form():
     return [
-        date_select_block(),
+        date_select_block("Date to log", date.today()),
         hours_input_block,
+        # 72 characters is the max length of a git commit message
+        text_field_block("Summary of work done", 70),
         submit_button_block("timelog_response")
     ]
 
 # User selection form for hour sum
-def gethours_form():
+def getentries_form():
     return [
         user_select_block,
-        submit_button_block("gethours_response")
+        num_entries_block,
+        submit_button_block("getentries_response")
     ]
 
 def getusertables_form():
@@ -187,12 +202,13 @@ def getusertables_form():
 
 def dateoverview_form():
     return [
-        date_select_block,
+        date_select_block("Date to view", date.today()),
         submit_button_block("dateoverview_response")
     ]
 
 def leaderboard_form():
     return [
-        date_constraint_block,
+        date_select_block("Start date", date.today() - timedelta(days=365), "start"),
+        date_select_block("End date", date.today(), "end"),
         submit_button_block("leaderboard_response")
     ]
