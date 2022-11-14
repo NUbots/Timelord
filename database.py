@@ -83,17 +83,17 @@ class SQLConnection:
                                 WHERE user_id = ? 
                                 ORDER BY entry_num DESC LIMIT 1) """, (user_id,))
 
-    # Get all entries by all users
-    def all_entries_list(self):
-        res = self.cur.execute("""SELECT u.name, tl.entry_num, tl.entry_date, tl.selected_date, tl.minutes
+    # Get last entries by all users
+    def all_user_entries_list(self, num_entries):
+        res = self.cur.execute("""SELECT u.name, u.display_name, tl.selected_date, tl.minutes, tl.entry_date, tl.summary
                                   FROM time_log tl
                                   INNER JOIN user_names u
                                   ON tl.user_id=u.user_id
-                                  LIMIT 30 """)
+                                  LIMIT ? """, (num_entries,))
         return(res.fetchall())
 
     # Get the last n entries by user
-    def last_entries_list(self, user_id, num_entries = 10):
+    def given_user_entries_list(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT selected_date, minutes, entry_date, summary
                                 FROM time_log 
                                 WHERE user_id = ?
@@ -110,8 +110,8 @@ class SQLConnection:
         params = [user_id]
         if (start_date and end_date):
             query += "AND selected_date >= ? AND selected_date <= ? "
-            params.append(start_date.strftime('%Y-%m-%d'))
-            params.append(end_date.strftime('%Y-%m-%d'))
+            params.append(start_date)
+            params.append(end_date)
         elif (start_date or end_date):
             raise ValueError("Both start and end dates must be specified if one is specified")
         res = self.cur.execute(query, params)
