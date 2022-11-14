@@ -67,11 +67,6 @@ def submit_timelog_form(ack, respond, body, logger):
         
         time_list = re.findall(r'\d+', time_input) # List with two ints
 
-        print(time_list)
-        for i in time_list:
-            print (int(i))
-            
-
         if (len(summary) > 70):
             raise ValueError("Summary must be under 70 characters")
         if not (all(i.isdigit() for i in time_list) and len(time_list) == 2):
@@ -85,7 +80,7 @@ def submit_timelog_form(ack, respond, body, logger):
 
     except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
-        logger.error(e)
+        logger.warn(e)
 
 # Get user-selection form (choose users to see their total hours logged)
 @app.command("/gethours")
@@ -118,12 +113,11 @@ def get_logged_hours(ack, body, respond, logger):
                 output += f"*{name}*: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
             else:
                 output += f"*{name}* has no logged hours\n"
-        # Send output to Slack chat and console
-        logger.info("\n" + output)
         respond(output)
 
-    except Exception as e:
+    except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warn(e)
 
 # Get user-selection form (choose users to see tables for their logged hours per date)
 @app.command("/getentries")
@@ -145,7 +139,9 @@ def get_logged_hours(ack, body, respond, logger):
         if not (users and num_entries_input):
             raise ValueError("Missing required field")
 
-        num_entries = re.findall(r'\d+', num_entries_input)[0]
+        try: num_entries = int(re.findall(r'\d+', num_entries_input)[0])
+        except: raise ValueError("Number of entries must be an integer")
+
         sqlc = database.SQLConnection()
         output = ""
         for user in users:
@@ -156,8 +152,9 @@ def get_logged_hours(ack, body, respond, logger):
                 output += f"_{i[3]}_" if i[3] else "No summary given"
         respond(output)
 
-    except Exception as e:
+    except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warn(e)
 
 @app.command("/dateoverview")
 def get_date_overview_form(ack, respond, body):
@@ -185,7 +182,7 @@ def get_date_overview(ack, body, respond, logger):
             output += f"_{i[3]}_" if i[3] else "No summary given"
         respond(output)
 
-    except Exception as e:
+    except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
 
 # Get a leaderboard with the top 10 contributors and their hours logged
