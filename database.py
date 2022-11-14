@@ -130,7 +130,7 @@ class SQLConnection:
                                   WHERE selected_date >= ? 
                                   AND selected_date <= ?
                                   GROUP BY u.name, u.display_name
-                                  ORDER BY totalMinutes DESC """, start_date, end_date)
+                                  ORDER BY totalMinutes DESC """, (start_date, end_date))
         return(res.fetchall())
 
     def entries_for_date_list(self, selected_date):
