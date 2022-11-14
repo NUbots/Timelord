@@ -186,6 +186,14 @@ def timelog_form():
     ]
 
 # User selection form for hour sum
+def gethours_form():
+    return [
+        user_select_block,
+        date_select_block("Start date", date.today() - timedelta(days=365), "start"),
+        date_select_block("End date", date.today(), "end"),
+        submit_button_block("gethours_response")
+    ]
+
 def getentries_form():
     return [
         user_select_block,

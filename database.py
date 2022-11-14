@@ -122,19 +122,15 @@ class SQLConnection:
             return(0)
 
     # Get the top 10 contributors
-    def leaderboard(self, date_constraint = None):
-        query = """SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
-                 FROM user_names u
-                 INNER JOIN time_log tl
-                 ON u.user_id=tl.user_id """
-        params = []
-        if date_constraint:
-            query += "WHERE selected_date >= ? AND selected_date <= ? "
-            params.append(date_constraint.start_date.strftime('%Y-%m-%d'))
-            params.append(date_constraint.end_date.strftime('%Y-%m-%d'))
-        query += """GROUP BY u.name, u.display_name
-                    ORDER BY totalMinutes DESC """
-        res = self.cur.execute(query, params)
+    def leaderboard(self, start_date = None, end_date = None):
+        res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
+                                  FROM user_names u
+                                  INNER JOIN time_log tl
+                                  ON u.user_id=tl.user_id
+                                  WHERE selected_date >= ? 
+                                  AND selected_date <= ?
+                                  GROUP BY u.name, u.display_name
+                                  ORDER BY totalMinutes DESC """, start_date, end_date)
         return(res.fetchall())
 
     def entries_for_date_list(self, selected_date):
