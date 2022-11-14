@@ -1,6 +1,8 @@
 # Slack block kit - https://api.slack.com/block-kit
 # Each slack block used is stored here as a single dictionary object. These are then combined into a list of blocks for each message.
 
+#  Clicking the submit button for a form will send a block_action payload with the user-input content from the form stored in a dictionary.
+# All inputs are stored as strings, integers, and booleans. Dates are stored as strings in the YYYY-MM-DD format.
 from datetime import date, timedelta
 
 num_entries_block = {

@@ -106,6 +106,9 @@ def get_logged_hours(ack, body, respond, logger):
         if not (users and start_date and end_date):
             raise ValueError("Missing required field")
 
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
     except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
         logger.warning(e)
@@ -219,12 +222,6 @@ def leaderboard_response(ack, body, respond, logger, command):
     try:
         start_date = body['state']['values']['date_select_block_start']['date_select_input']['selected_date']
         end_date = body['state']['values']['date_select_block_end']['date_select_input']['selected_date']
-
-        print(start_date)
-        print(end_date)
-
-        print(type(start_date))
-        print(type(end_date))
 
         if not (start_date and end_date):
             raise ValueError("Both a start and end date must be specified")

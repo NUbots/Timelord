@@ -35,6 +35,9 @@ def create_user_table():
 # SQLite3 documentation says placeholder question marks and a tuple of values should be used rather than formatted strings to prevent sql injection attacks
 # Ot's probably not important in this project but there's no reason not to do it this way
 
+# All public methods in this class assume date is being given as a date object, not a string. This means multiple conversions are needed sometimes but it
+# keeps things consistent and makes the whole program easier to maintain.
+
 class SQLConnection:
     def __init__(self):
         # Open SQL connection
@@ -104,22 +107,15 @@ class SQLConnection:
     # Get total minutes logged by user with given user_id
     def time_sum(self, user_id, start_date = None, end_date = None):
         # If the user has entries in the database return their total time logged, otherwise return 0
-        query = """SELECT SUM(minutes)
-                   FROM time_log
-                   WHERE user_id = ? """
-        params = [user_id]
-        if (start_date and end_date):
-            query += "AND selected_date >= ? AND selected_date <= ? "
-            params.append(start_date)
-            params.append(end_date)
-        elif (start_date or end_date):
-            raise ValueError("Both start and end dates must be specified if one is specified")
-        res = self.cur.execute(query, params)
+        start_date = start_date.strftime('%Y-%m-%d')
+        end_date = end_date.strftime('%Y-%m-%d')
+        res = self.cur.execute("""SELECT SUM(minutes)
+                                  FROM time_log
+                                  WHERE user_id = ?
+                                  AND selected_date >= ? 
+                                  AND selected_date <= ? """, (user_id, start_date, end_date))
         minutes = res.fetchone()[0]
-        if (minutes != None):
-            return(minutes)
-        else:
-            return(0)
+        return minutes if minutes else 0
 
     # Get the top 10 contributors
     def leaderboard(self, start_date = None, end_date = None):
@@ -134,7 +130,7 @@ class SQLConnection:
         return(res.fetchall())
 
     def entries_for_date_list(self, selected_date):
-        # Get all entries by all users7
+        # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
                                 FROM time_log tl
                                 INNER JOIN user_names u
