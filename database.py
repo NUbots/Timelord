@@ -35,6 +35,9 @@ def create_user_table():
 # SQLite3 documentation says placeholder question marks and a tuple of values should be used rather than formatted strings to prevent sql injection attacks
 # Ot's probably not important in this project but there's no reason not to do it this way
 
+# All public methods in this class assume date is being given as a date object, not a string. This means multiple conversions are needed sometimes but it
+# keeps things consistent and makes the whole program easier to maintain.
+
 class SQLConnection:
     def __init__(self):
         # Open SQL connection
@@ -83,17 +86,17 @@ class SQLConnection:
                                 WHERE user_id = ? 
                                 ORDER BY entry_num DESC LIMIT 1) """, (user_id,))
 
-    # Get all entries by all users
-    def all_entries_list(self):
-        res = self.cur.execute("""SELECT u.name, tl.entry_num, tl.entry_date, tl.selected_date, tl.minutes
+    # Get last entries by all users
+    def all_user_entries_list(self, num_entries):
+        res = self.cur.execute("""SELECT u.name, u.display_name, tl.selected_date, tl.minutes, tl.entry_date, tl.summary
                                   FROM time_log tl
                                   INNER JOIN user_names u
                                   ON tl.user_id=u.user_id
-                                  LIMIT 30 """)
+                                  LIMIT ? """, (num_entries,))
         return(res.fetchall())
 
     # Get the last n entries by user
-    def last_entries_list(self, user_id, num_entries = 10):
+    def given_user_entries_list(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT selected_date, minutes, entry_date, summary
                                 FROM time_log 
                                 WHERE user_id = ?
@@ -104,41 +107,30 @@ class SQLConnection:
     # Get total minutes logged by user with given user_id
     def time_sum(self, user_id, start_date = None, end_date = None):
         # If the user has entries in the database return their total time logged, otherwise return 0
-        query = """SELECT SUM(minutes)
-                   FROM time_log
-                   WHERE user_id = ? """
-        params = [user_id]
-        if (start_date and end_date):
-            query += "AND selected_date >= ? AND selected_date <= ? "
-            params.append(start_date.strftime('%Y-%m-%d'))
-            params.append(end_date.strftime('%Y-%m-%d'))
-        elif (start_date or end_date):
-            raise ValueError("Both start and end dates must be specified if one is specified")
-        res = self.cur.execute(query, params)
+        start_date = start_date.strftime('%Y-%m-%d')
+        end_date = end_date.strftime('%Y-%m-%d')
+        res = self.cur.execute("""SELECT SUM(minutes)
+                                  FROM time_log
+                                  WHERE user_id = ?
+                                  AND selected_date >= ? 
+                                  AND selected_date <= ? """, (user_id, start_date, end_date))
         minutes = res.fetchone()[0]
-        if (minutes != None):
-            return(minutes)
-        else:
-            return(0)
+        return minutes if minutes else 0
 
     # Get the top 10 contributors
-    def leaderboard(self, date_constraint = None):
-        query = """SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
-                 FROM user_names u
-                 INNER JOIN time_log tl
-                 ON u.user_id=tl.user_id """
-        params = []
-        if date_constraint:
-            query += "WHERE selected_date >= ? AND selected_date <= ? "
-            params.append(date_constraint.start_date.strftime('%Y-%m-%d'))
-            params.append(date_constraint.end_date.strftime('%Y-%m-%d'))
-        query += """GROUP BY u.name, u.display_name
-                    ORDER BY totalMinutes DESC """
-        res = self.cur.execute(query, params)
+    def leaderboard(self, start_date = None, end_date = None):
+        res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
+                                  FROM user_names u
+                                  INNER JOIN time_log tl
+                                  ON u.user_id=tl.user_id
+                                  WHERE selected_date >= ? 
+                                  AND selected_date <= ?
+                                  GROUP BY u.name, u.display_name
+                                  ORDER BY totalMinutes DESC """, (start_date, end_date))
         return(res.fetchall())
 
     def entries_for_date_list(self, selected_date):
-        # Get all entries by all users7
+        # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
                                 FROM time_log tl
                                 INNER JOIN user_names u

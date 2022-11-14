@@ -58,26 +58,36 @@ def time_log(ack, respond, command):
 @app.action("timelog_response")
 def submit_timelog_form(ack, respond, body, logger):
     ack()
-    user_id = body['user']['id']
-    # Get user-selected date, hours, and minutes from form
-    selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
-    time_input = re.findall(r'\d+', body['state']['values']['hours_block']['hours_input']['value']) # creates list containing two strings (hours and minutes)
-    summary = body['state']['values']['text_field_block']['text_input']['value']
 
     try:
-        minutes = int(time_input[0])*60 + int(time_input[1])    # user input (hours and minutes) stored as minutes only
+        user_id = body['user']['id']
 
-        logger.info(f"New log entry of {time_input[0]} hours and {time_input[1]} minutes for {selected_date} by {user_id}")
+        selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
+        time_input = body['state']['values']['hours_block']['hours_input']['value'] # String
+        summary = body['state']['values']['text_field_block']['text_input']['value']
 
-        sqlc = database.SQLConnection()
-        sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
+        if not (select_date and time_input and summary):
+            raise ValueError("Missing required field")
+        
+        time_list = re.findall(r'\d+', time_input) # List with two ints
 
-        respond(f"Time logged: {time_input[0]} hours and {time_input[1]} minutes for date {selected_date}.")
+        if (len(summary) > 70):
+            raise ValueError("Summary must be under 70 characters")
+        if not (all(i.isdigit() for i in time_list) and len(time_list) == 2):
+            raise ValueError("Time logged field must contain two numbers seperated by some characters (e.g. 3h 25m)")
 
-    except:
-        # Show the user an error if they input anything other than two integers separated by some character / characters
-        logger.exception("Invalid user input, failed to create time log entry.")
-        respond("*Invalid input!* Please try again! In the *Time logged* field enter two numbers separated by some characters (e.g. 3h 25m)")
+    except ValueError as e:
+        respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warning(e)
+        return
+
+    minutes = int(time_list[0])*60 + int(time_list[1])    # user input (hours and minutes) stored as minutes only
+    logger.info(f"New log entry of {time_list[0]} hours and {time_list[1]} minutes for {selected_date} by {user_id}")
+    sqlc = database.SQLConnection()
+    sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
+    respond(f"Time logged: {time_list[0]} hours and {time_list[1]} minutes for date {selected_date}.")
+
+
 
 # Get user-selection form (choose users to see their total hours logged)
 @app.command("/gethours")
@@ -92,22 +102,35 @@ def get_user_hours_form(ack, respond, body, command):
 @app.action("gethours_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
-    # Get list of users submitted for query by Slack admin
-    users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
-    # Open an SQL connection
+    try:
+        users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
+        start_date = body['state']['values']['date_select_block_start']['date_select_input']['selected_date']
+        end_date = body['state']['values']['date_select_block_end']['date_select_input']['selected_date']
+
+        if not (users and start_date and end_date):
+            raise ValueError("Missing required field")
+
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+    except ValueError as e:
+        respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warning(e)
+        return
+
     sqlc = database.SQLConnection()
     output = ""
     # Add the time logged by each user to the output
     for i in users:
         name = user_name(i)
-        user_time = sqlc.time_sum(i)
+        user_time = sqlc.time_sum(i, start_date, end_date)
         if (user_time > 0):
             output += f"*{name}*: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
         else:
             output += f"*{name}* has no logged hours\n"
-    # Send output to Slack chat and console
-    logger.info("\n" + output)
     respond(output)
+
+
 
 # Get user-selection form (choose users to see tables for their logged hours per date)
 @app.command("/getentries")
@@ -122,20 +145,35 @@ def get_user_hours_form(ack, respond, body, command):
 @app.action("getentries_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
-    users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
     try:
-        num_entries = re.findall(r'\d+', body['state']['values']['num_entries_block']['num_entries_input']['value'])[0]
-    except:
-        respond('Invalid input! Please try again.')
+        users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
+        num_entries_input = body['state']['values']['num_entries_block']['num_entries_input']['value']
+
+        if not (users and num_entries_input):
+            raise ValueError("Missing required field")
+
+        try: num_entries = int(re.findall(r'\d+', num_entries_input)[0])
+        except: raise ValueError("Number of entries must be an integer")
+    
+    except ValueError as e:
+        respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warning(e)
+        return
+
     sqlc = database.SQLConnection()
     output = ""
     for user in users:
         output += f"\n\n\n*{user_name(user)}*"
-        entries = sqlc.last_entries_list(user, num_entries)
-        for i in entries:
-            output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
-            output += f"_{i[3]}_" if i[3] else "No summary given"
+        entries = sqlc.given_user_entries_list(user, num_entries)
+        if entries:
+            for i in entries:
+                output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
+                output += f"_{i[3]}_" if i[3] else "No summary given"
+        else:
+            output += "\n\n  •  No entries"
     respond(output)
+
+
 
 @app.command("/dateoverview")
 def get_date_overview_form(ack, respond, body):
@@ -148,16 +186,29 @@ def get_date_overview_form(ack, respond, body):
 @app.action("dateoverview_response")
 def get_date_overview(ack, body, respond, logger):
     ack()
-    selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
+    try:
+        selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
+        if not (selected_date):
+            raise ValueError("Missing required field")
+
+    except ValueError as e:
+        respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warning(e)
+        return
+
     sqlc = database.SQLConnection()
     entries = sqlc.entries_for_date_list(selected_date)
     output = f"*Overview for {selected_date}*"
-    for i in entries:
-        name = i[0]
-        if i[1] != "": name += " ("+i[1]+")"
-        output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
-        output += f"_{i[3]}_" if i[3] else "No summary given"
+    if entries:
+        for i in entries:
+            name = i[0]
+            if i[1] != "": name += " ("+i[1]+")"
+            output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
+            output += f"_{i[3]}_" if i[3] else "No summary given"
+    else:
+        output += "\n\n  •  No entries"
     respond(output)
+
 
 
 # Get a leaderboard with the top 10 contributors and their hours logged
@@ -172,12 +223,28 @@ def leaderboard(ack, body, respond):
 @app.action("leaderboard_response")
 def leaderboard_response(ack, body, respond, logger, command):
     ack()
-    start_date = body['state']['values']['date_select_block']['date_select_input_end']['selected_date']
-    end_date = body['state']['values']['date_select_block']['date_select_input_end']['selected_date']
+    try:
+        start_date = body['state']['values']['date_select_block_start']['date_select_input']['selected_date']
+        end_date = body['state']['values']['date_select_block_end']['date_select_input']['selected_date']
+
+        if not (start_date and end_date):
+            raise ValueError("Both a start and end date must be specified")
+
+    except ValueError as e:
+        respond(f"*Invalid input, please try again!* {str(e)}.")
+        logger.warning(e)
+        return
+
     sqlc = database.SQLConnection()
     contributions = sqlc.leaderboard(start_date, end_date)
-    if contributions():
-        output = f"*All contributors between {start_date} and {end_date} ranked by hours logged*\n"
+    
+    # Doing this means we are converting from date object to string, to date object, and then back to string
+    # I still think this is the best approach because it is clearer and easier to read than a string manipulation
+    au_start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%d/%m/%y")
+    au_end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%d/%m/%y")
+
+    if contributions:
+        output = f"*All contributors between {au_start_date} and {au_end_date} ranked by hours logged*\n"
         for i in contributions:
             # Add custom display name if applicable
             name = i[0]
@@ -185,26 +252,27 @@ def leaderboard_response(ack, body, respond, logger, command):
             output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
         respond(output)
     else:
-        respond(f"No hours logged between {start_date} and {end_date}!")
+        respond(f"No hours logged between {au_start_date} and {au_end_date}!")
+
 
 ################################### Commands without forms ###################################
 
 @app.command("/help")
-def help(ack, respond, body, command):
+def help(ack, respond, body):
     ack()
     output = """
     \n*User Commands:*
-    */timelog* Opens a time logging form
+    */timelog* Open a time logging form
     */deletelast* Delete your last entry
     */myentries n* Get your last n entries (defaults to 5)"""
     if(is_admin(body['user_id'])):
         output += """
     \n*Admin Commands:*
-    */gethours* Select users and get their total hours logged
-    */getentries* Select users to see their most recent entries
-    */lastentries n* Responds with the last 30 entries from all users
-    */leaderboard n* Responds with the top n contributors and their total time logged (defaults to 10)
-    */dateoverview* Responds with all entries for a given date"""
+    */gethours* Select users and see their total hours logged
+    */getentries* Select users and see their most recent entries
+    */lastentries n* See the last n entries from all users in one list (defaults to 30)
+    */leaderboard* Select a date range and rank all users by hours logged in that range
+    */dateoverview* See all entries for a given date"""
     respond(output)
 
 # Respond with a table showing the last n entries made by the user issuing the command
@@ -213,14 +281,20 @@ def user_entries(ack, respond, body, command, logger):
     ack()
     try:
         user_id = body['user_id']
-        name = user_name(user_id)
-        num_entries = int(command['text']) if command['text'] != "" else 10 # Defaults to 10 entries
-    except:
-        logger.exception("Invalid user input, failed to create time log entry")
-        respond("*Invalid input!* Please try again! You can generate a table with your last n entries with `/myentries n`. If you leave n blank a default value of 5 will be used.")
+        if command['text'].isdigit():
+            num_entries = int(command['text'])
+        elif not command['text']:
+            num_entries = 10
+        else:
+            raise ValueError("If a number of entries is provided it must be a positive integer")
+
+    except ValueError as e:
+        respond(f"*Invalid input!* Please try again! {str(e)}.")
+        logger.warning(e)
+        return
 
     sqlc = database.SQLConnection()
-    entries = sqlc.last_entries_list(user_id, num_entries)
+    entries = sqlc.given_user_entries_list(user_id, num_entries)
     today = datetime.today()
     yearly_minutes = sqlc.time_sum(user_id, today - timedelta(days=365), today)
     weekly_minutes = sqlc.time_sum(user_id, today - timedelta(days=today.weekday()), today)
@@ -228,10 +302,12 @@ def user_entries(ack, respond, body, command, logger):
     output = f"\n*Hours logged in the last 365 days*: {int(yearly_minutes/60)} hours and {yearly_minutes%60} minutes"
     output += f"\n*Hours logged this week:* {int(weekly_minutes/60)} hours and {weekly_minutes%60} minutes"
     
-    for i in entries:
-        output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
-        output += f"_{i[3]}_" if i[3] else "No summary given"
-
+    if entries:
+        for i in entries:
+            output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
+            output += f"_{i[3]}_" if i[3] else "No summary given"
+    else:
+        output += "\n\n  •  No entries"
     respond(output)
 
 # Delete the last entry made by the user issuing the command
@@ -248,22 +324,32 @@ def log_database(ack, body, respond, command, logger):
     ack()
     if(is_admin(body['user_id'])):
         try:
-            num_entries = int(command['text']) if command['text'] != "" else 30 # Defaults to 30 entries
+            if command['text'].isdigit():
+                num_entries = int(command['text'])
+            elif not command['text']:
+                num_entries = 30
+            else:
+                raise ValueError("If a number of users is provided it must be a positive integer")
 
-            sqlc = database.SQLConnection()
-            entries = sqlc.all_entries_list(num_entries)
+        except ValueError as e:
+            respond(f"*Invalid input!* {str(e)}")
+            logger.warning(e)
+            return
 
-            output = f"*Last {num_entries} entries from all users*"
+        sqlc = database.SQLConnection()
+        entries = sqlc.all_user_entries_list(num_entries)
+
+        output = f"*Last {num_entries} entries from all users*"
+        if entries:
             for i in entries:
                 name = i[0]
                 if i[1] != "": name += " ("+i[1]+")"
-                output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
-                output += f"_{i[3]}_" if i[3] else "No summary given"
+                output += f"\n\n  •  {name} / {i[2]} / {int(i[3]/60):2} hours and {i[3]%60:2} minutes / Submitted {i[4]} / "
+                output += f"_{i[5]}_" if i[5] else "No summary given"
+        else:
+            output += "\n\n  •  No entries"
 
-            respond(output)
-        except:
-            logger.exception("Invalid user input, failed to fetch entries")
-            respond("*Invalid input!* Please try again! You can retrieve the last n entries from all users with `/myentries n`. If you leave n blank a default value of 30 will be used.")
+        respond(output)
     else:
         respond("You must be an admin to use this command!")
 
