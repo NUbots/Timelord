@@ -264,10 +264,10 @@ def help(ack, respond, body):
     if(is_admin(body['user_id'])):
         output += """
     \n*Admin Commands:*
-    */gethours* Select users and to see their total hours logged
-    */getentries* Select users to see their most recent entries
-    */lastentries n* See the last 30 entries from all users
-    */leaderboard* See everyone who has made contributions in the date range ranked by hours logged
+    */gethours* Select users and see their total hours logged
+    */getentries* Select users and see their most recent entries
+    */lastentries n* See the last n entries from all users in one list (defaults to 30)
+    */leaderboard* Select a date range and rank all users by hours logged in that range
     */dateoverview* See all entries for a given date"""
     respond(output)
 
