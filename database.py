@@ -22,10 +22,11 @@ def create_log_table():
 def create_user_table():
     con = sqlite3.connect(db_file)
     cur = con.cursor()
-    cur.execute("""CREATE TABLE IF NOT EXISTS user_names (
+    cur.execute("""CREATE TABLE IF NOT EXISTS users (
                         user_id TEXT NOT NULL,
                         name TEXT NOT NULL,
                         display_name TEXT,
+                        reminders BOOL DEFAULT false NOT NULL,
 
                         PRIMARY KEY (user_id)) """)
 
@@ -75,6 +76,10 @@ class SQLConnection:
                                   FROM time_log
                                   WHERE user_id = ? """, (user_id,))
         entry_num = res.fetchone()[0]
+        # Enable reminders and set entry number to 1 if this is the first entry
+        if not entry_num:
+            entry_num = 1
+            self.cur.execute("INSERT INTO USERS (reminders) VALUES (true)")
         entry_num = 1 if not entry_num else entry_num + 1
         
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?,?)", (entry_num, user_id, today, selected_date, minutes, summary))
@@ -145,5 +150,7 @@ class SQLConnection:
                                   FROM user_names u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
-                                  WHERE ? > (SELECT MAX(selected_date)
+                                  WHERE u.reminders = true
+                                  AND ? > (SELECT MAX(selected_date)
                                              FROM time_log)""", (last_week,))
+        return(res.fetchall())
