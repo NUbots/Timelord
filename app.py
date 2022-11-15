@@ -88,8 +88,6 @@ def submit_timelog_form(ack, respond, body, logger):
     respond(f"Time logged: {time_list[0]} hours and {time_list[1]} minutes for date {selected_date}.")
 
 
-
-# Get user-selection form (choose users to see their total hours logged)
 @app.command("/gethours")
 def get_user_hours_form(ack, respond, body, command):
     ack()
@@ -98,7 +96,6 @@ def get_user_hours_form(ack, respond, body, command):
     else:
         respond("You must be an admin to use this command!")
 
-# Form response: total hours logged for each user chosen
 @app.action("gethours_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
@@ -131,8 +128,6 @@ def get_logged_hours(ack, body, respond, logger):
     respond(output)
 
 
-
-# Get user-selection form (choose users to see tables for their logged hours per date)
 @app.command("/getentries")
 def get_user_hours_form(ack, respond, body, command):
     ack()
@@ -141,7 +136,6 @@ def get_user_hours_form(ack, respond, body, command):
     else:
         respond("You must be an admin to use this command!")
 
-# Form response: log tables for all users specified
 @app.action("getentries_response")
 def get_logged_hours(ack, body, respond, logger):
     ack()
@@ -172,7 +166,6 @@ def get_logged_hours(ack, body, respond, logger):
         else:
             output += "\n\n  •  No entries"
     respond(output)
-
 
 
 @app.command("/dateoverview")
@@ -210,8 +203,6 @@ def get_date_overview(ack, body, respond, logger):
     respond(output)
 
 
-
-# Get a leaderboard with the top 10 contributors and their hours logged
 @app.command("/leaderboard")
 def leaderboard(ack, body, respond):
     ack()
@@ -275,7 +266,6 @@ def help(ack, respond, body):
     */dateoverview* See all entries for a given date"""
     respond(output)
 
-# Respond with a table showing the last n entries made by the user issuing the command
 @app.command("/myentries") # used '/myentries n'
 def user_entries(ack, respond, body, command, logger):
     ack()
@@ -310,7 +300,6 @@ def user_entries(ack, respond, body, command, logger):
         output += "\n\n  •  No entries"
     respond(output)
 
-# Delete the last entry made by the user issuing the command
 @app.command("/deletelast")
 def delete_last(ack, respond, body, command):
     ack()
@@ -318,7 +307,6 @@ def delete_last(ack, respond, body, command):
     sqlc.remove_last_entry(body['user_id'])
     respond("Last entry removed!")
 
-# Respond with last 30 hours entered by all users
 @app.command("/lastentries")
 def log_database(ack, body, respond, command, logger):
     ack()
@@ -352,6 +340,15 @@ def log_database(ack, body, respond, command, logger):
         respond(output)
     else:
         respond("You must be an admin to use this command!")
+
+@app.command("/togglereminders")
+def toggle_reminders(ack, respond, body):
+    ack()
+    sqlc = database.SQLConnection()
+    if(sqlc.toggle_reminders(body['user_id'])):
+        respond("Reminders enabled!")
+    else:
+        respond("Reminders disabled!")
 
 ################################### Other events to be handled ###################################
 
@@ -392,9 +389,12 @@ def handle_some_action(ack, body, logger):
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
+    print("notifying")
+    print(users)
     if users:
         for i in users:
-            send_instant_message(i, "You have not logged any hours in the last 7 days. Please log your hours as soon as possible!")
+            logging.info(f"Notifying {i[1]} of inactivity")
+            send_instant_message(i[0], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
 
 if __name__ == "__main__":
     # Create tables

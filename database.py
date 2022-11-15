@@ -52,14 +52,14 @@ class SQLConnection:
 
     # Validate user info from slack client against internal user entry
     def validate_user(self, user_id, name, display_name):
-        self.cur.execute("""INSERT INTO user_names (user_id, name, display_name)
+        self.cur.execute("""INSERT INTO users (user_id, name, display_name)
                             VALUES (?, ?, ?)
                             ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=? """, (user_id, name, display_name, name, display_name))
 
     # Get user's full name and custom display name from database
     def user_name(self, user_id):
         res = self.cur.execute("""SELECT name, display_name
-                                  FROM user_names
+                                  FROM users
                                   WHERE user_id = ?""", (user_id,))
         # user is a tuple containing the users real name and a custom display name if applicable (otherwise an empty string)
         user = res.fetchone()
@@ -79,7 +79,9 @@ class SQLConnection:
         # Enable reminders and set entry number to 1 if this is the first entry
         if not entry_num:
             entry_num = 1
-            self.cur.execute("INSERT INTO USERS (reminders) VALUES (true)")
+            self.cur.execute("""UPDATE users 
+                                SET reminders = true
+                                WHERE user_id = ? """, (user_id,))
         entry_num = 1 if not entry_num else entry_num + 1
         
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?,?)", (entry_num, user_id, today, selected_date, minutes, summary))
@@ -95,7 +97,7 @@ class SQLConnection:
     def all_user_entries_list(self, num_entries):
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.selected_date, tl.minutes, tl.entry_date, tl.summary
                                   FROM time_log tl
-                                  INNER JOIN user_names u
+                                  INNER JOIN users u
                                   ON tl.user_id=u.user_id
                                   LIMIT ? """, (num_entries,))
         return(res.fetchall())
@@ -125,7 +127,7 @@ class SQLConnection:
     # Get the top 10 contributors
     def leaderboard(self, start_date = None, end_date = None):
         res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
-                                  FROM user_names u
+                                  FROM users u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
                                   WHERE selected_date >= ? 
@@ -137,20 +139,31 @@ class SQLConnection:
     def entries_for_date_list(self, selected_date):
         # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
-                                FROM time_log tl
-                                INNER JOIN user_names u
-                                ON tl.user_id=u.user_id
-                                WHERE tl.selected_date=? """, (selected_date,))
+                                  FROM time_log tl
+                                  INNER JOIN users u
+                                  ON tl.user_id=u.user_id
+                                  WHERE tl.selected_date=? """, (selected_date,))
         return(res.fetchall())
 
     def inactive_users(self):
-        last_week = date.today() - timedelta(days=7)
+        last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
+        print (type(last_week))
+        print(last_week)
         # Since this is an inner join, users who have never logged hours won'be be included
-        res = self.cur.execute("""SELECT u.user_id
-                                  FROM user_names u
+        res = self.cur.execute("""SELECT DISTINCT u.user_id, u.name
+                                  FROM users u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
                                   WHERE u.reminders = true
                                   AND ? > (SELECT MAX(selected_date)
-                                             FROM time_log)""", (last_week,))
+                                      FROM time_log)""", (last_week,))
         return(res.fetchall())
+
+    def toggle_reminders(self, user_id):
+        self.cur.execute("""UPDATE users 
+                            SET reminders = NOT reminders
+                            WHERE user_id = ? """, (user_id,))
+        res = self.cur.execute("""SELECT reminders
+                                  FROM users
+                                  WHERE user_id = ? """, (user_id,))
+        return res.fetchone()[0]
