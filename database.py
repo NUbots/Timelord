@@ -147,16 +147,15 @@ class SQLConnection:
 
     def inactive_users(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
-        print (type(last_week))
-        print(last_week)
-        # Since this is an inner join, users who have never logged hours won'be be included
-        res = self.cur.execute("""SELECT DISTINCT u.user_id, u.name
+        res = self.cur.execute("""SELECT u.user_id, u.name, MAX(selected_date)
                                   FROM users u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
                                   WHERE u.reminders = true
                                   AND ? > (SELECT MAX(selected_date)
-                                      FROM time_log)""", (last_week,))
+                                      FROM time_log
+                                      WHERE user_id = u.user_id)
+                                  GROUP BY u.user_id, u.name""", (last_week,))
         return(res.fetchall())
 
     def toggle_reminders(self, user_id):

@@ -389,8 +389,6 @@ def handle_some_action(ack, body, logger):
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
-    print("notifying")
-    print(users)
     if users:
         for i in users:
             logging.info(f"Notifying {i[1]} of inactivity")
