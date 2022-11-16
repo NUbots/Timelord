@@ -2,9 +2,15 @@ import os, re, logging, blocks, database
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from pathlib import Path
+from collections import namedtuple
+
+import sys
+if not sys.version_info >= (3, 10):
+    raise Exception("Requires Python 3.10 or higher!")
 
 dotenv_path = Path(".env")
 if dotenv_path.exists():
