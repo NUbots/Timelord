@@ -5,7 +5,6 @@ from tabulate import tabulate
 db_file = "timelord.db"
 
 def create_log_table():
-    # Create time log table
     con = sqlite3.connect(db_file)
     cur = con.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS time_log (
@@ -41,22 +40,18 @@ def create_user_table():
 
 class SQLConnection:
     def __init__(self):
-        # Open SQL connection
         self.con = sqlite3.connect(db_file)
         self.cur = self.con.cursor()
 
     def __del__(self):
-        # Close SQL connection (saving changes to file)
         self.con.commit()
         self.con.close()
 
-    # Validate user info from slack client against internal user entry
     def validate_user(self, user_id, name, display_name):
         self.cur.execute("""INSERT INTO users (user_id, name, display_name)
                             VALUES (?, ?, ?)
                             ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=? """, (user_id, name, display_name, name, display_name))
 
-    # Get user's full name and custom display name from database
     def user_name(self, user_id):
         res = self.cur.execute("""SELECT name, display_name
                                   FROM users
@@ -93,7 +88,6 @@ class SQLConnection:
                                 WHERE user_id = ? 
                                 ORDER BY entry_num DESC LIMIT 1) """, (user_id,))
 
-    # Get last entries by all users
     def all_user_entries_list(self, num_entries):
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.selected_date, tl.minutes, tl.entry_date, tl.summary
                                   FROM time_log tl
@@ -102,7 +96,6 @@ class SQLConnection:
                                   LIMIT ? """, (num_entries,))
         return(res.fetchall())
 
-    # Get the last n entries by user
     def given_user_entries_list(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT selected_date, minutes, entry_date, summary
                                 FROM time_log 
@@ -111,9 +104,7 @@ class SQLConnection:
                                 LIMIT ? """, (user_id, num_entries))
         return(res.fetchall())
 
-    # Get total minutes logged by user with given user_id
     def time_sum(self, user_id, start_date = None, end_date = None):
-        # If the user has entries in the database return their total time logged, otherwise return 0
         start_date = start_date.strftime('%Y-%m-%d')
         end_date = end_date.strftime('%Y-%m-%d')
         res = self.cur.execute("""SELECT SUM(minutes)
@@ -124,7 +115,6 @@ class SQLConnection:
         minutes = res.fetchone()[0]
         return minutes if minutes else 0
 
-    # Get the top 10 contributors
     def leaderboard(self, start_date = None, end_date = None):
         res = self.cur.execute("""SELECT u.name, u.display_name, sum(tl.minutes) AS totalMinutes
                                   FROM users u
@@ -137,7 +127,6 @@ class SQLConnection:
         return(res.fetchall())
 
     def entries_for_date_list(self, selected_date):
-        # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
                                   FROM time_log tl
                                   INNER JOIN users u
