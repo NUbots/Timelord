@@ -1,4 +1,5 @@
-import os, re, logging, blocks, database
+import os, re, logging, time, threading, schedule
+import blocks, database
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
@@ -83,7 +84,7 @@ def submit_timelog_form(ack, respond, body, logger):
 
 
 @app.command("/gethours")
-def get_user_hours_form(ack, respond, body, command):
+def get_user_hours_form(ack, respond, body):
     ack()
     if(is_admin(body['user_id'])):
         respond(blocks=blocks.gethours_form())
@@ -380,6 +381,8 @@ def handle_some_action(ack, body, logger):
     ack()
     logger.debug(body)
 
+################################### Startup and related functions ###################################
+
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
@@ -388,13 +391,25 @@ def notify_inactive_users():
             logging.info(f"Notifying {i[1]} of inactivity")
             send_instant_message(i[0], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
 
+def schedule_reminders():
+    schedule.every().day.at("16:28").do(notify_inactive_users)
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+def start_app(app, token):
+    SocketModeHandler(app, token).start()
+
 if __name__ == "__main__":
-    # Create tables
     database.create_log_table()
     database.create_user_table()
-    # Check all users in workspace against users in database
     validate_all_users()
-    # Open a WebSocket connection with Slack
-    sqlc = database.SQLConnection()
-    notify_inactive_users()
-    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+
+    t1 = threading.Thread(target=schedule_reminders, args=())
+    t2 = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
+
+    t1.start() 
+    t2.start()
+
+    t1.join()
+    t2.join()
