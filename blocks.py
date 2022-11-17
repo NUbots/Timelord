@@ -71,60 +71,6 @@ user_select_block = {
     }
 }
 
-date_constraint_block = {
-    "block_id": "date_constraint_block",
-    "type": "input",
-    "element": {
-        "type": "static_select",
-        "initial_option": {
-            "text": {
-                "type": "plain_text",
-                "text": "This year",
-            },
-            "value": "this year"
-        },
-        "placeholder": {
-            "type": "plain_text",
-            "text": "Select an item",
-        },
-        "options": [
-            {
-                "text": {
-                    "type": "plain_text",
-                    "text": "This year",
-                },
-                "value": "this year"
-            },
-            {
-                "text": {
-                    "type": "plain_text",
-                    "text": "Today",
-                },
-                "value": "today"
-            },
-            {
-                "text": {
-                    "type": "plain_text",
-                    "text": "This week",
-                },
-                "value": "this week"
-            },
-            {
-                "text": {
-                    "type": "plain_text",
-                    "text": "This month",
-                },
-                "value": "this month"
-            }
-        ],
-        "action_id": "date_constraint_input"
-    },
-    "label": {
-        "type": "plain_text",
-        "text": "Selection range",
-    }
-}
-
 def text_field_block(label, max_length):
     return {
         "type": "input",
@@ -182,7 +128,6 @@ def timelog_form():
     return [
         date_select_block("Date to log", date.today()),
         hours_input_block,
-        # 72 characters is the max length of a git commit message
         text_field_block("Summary of work done", 70),
         submit_button_block("timelog_response")
     ]
