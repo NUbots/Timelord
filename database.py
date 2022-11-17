@@ -27,7 +27,7 @@ def create_user_table():
                         name TEXT NOT NULL,
                         display_name TEXT,
                         reminders_enabled BOOL DEFAULT false NOT NULL,
-                        reminded_since_last_entry BOOL DEFAULT false NOT NULL,
+                        last_reminded date default NULL,
 
                         PRIMARY KEY (user_id)) """)
 
@@ -153,27 +153,26 @@ class SQLConnection:
 
     def inactive_users(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
-        res = self.cur.execute("""SELECT u.user_id, u.name, MAX(selected_date)
+        self.cur.row_factory = lambda cursor, row: {'id': row[0], 'name': row[1], 'last_entry': row[2]}
+        res = self.cur.execute("""SELECT u.user_id, u.name, MAX(tl.selected_date) AS last_entry_date
                                   FROM users u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
                                   WHERE u.reminders_enabled = true
                                   AND ? > (SELECT MAX(selected_date)
-                                      FROM time_log
-                                      WHERE user_id = u.user_id)
-                                  GROUP BY u.user_id, u.name""", (last_week,))
+                                  FROM time_log
+                                  WHERE user_id = u.user_id)
+                                  AND (? > u.last_reminded
+                                  OR u.last_reminded IS NULL)
+                                  GROUP BY u.user_id, u.name, u.last_reminded""", (last_week, last_week))
         return(res.fetchall())
 
-
     def update_reminded_users(self, users):
-        query = f"""UPDATE users
-                   SET reminded_since_last_entry = true
-                   WHERE user_id IN {", ".join(["?"]*len(users))} """
-        print(query)
-        print(users)
+        args = [date.today()]+users
+        print(args)
         self.cur.execute(f"""UPDATE users
-                             SET reminded_since_last_entry = true
-                             WHERE user_id IN {", ".join(["?"]*len(users))} """, users)
+                             SET last_reminded = ?
+                             WHERE user_id IN ({','.join('?'*len(users))})""", args)
 
     def toggle_reminders(self, user_id):
         self.cur.execute("""UPDATE users 

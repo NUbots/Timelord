@@ -52,7 +52,6 @@ def time_log(ack, respond, command):
 # Form response: confirmation of hours logged
 @app.action("timelog_response")
 def submit_timelog_form(ack, respond, body, logger):
-    st = time.time()
     ack()
 
     try:
@@ -82,10 +81,6 @@ def submit_timelog_form(ack, respond, body, logger):
     sqlc = database.SQLConnection()
     sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
     respond(f"Time logged: {time_list[0]} hours and {time_list[1]} minutes for date {selected_date}.")
-    
-    et = time.time()
-    elapsed_time = et - st
-    print('Execution time:', elapsed_time, 'seconds')
 
 
 @app.command("/gethours")
@@ -388,22 +383,22 @@ def handle_some_action(ack, body, logger):
 
 ################################### Startup and related functions ###################################
 
-st = time.time()
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
+    print("Inactive users: " + str(users))
     if users:
-        for i in users:
-            logging.info(f"Notifying {i[1]} of inactivity")
-            send_instant_message(i[0], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
-            sqlc.update_reminded_users(users)
-et = time.time()
-elapsed_time = et - st
-print('Execution time:', elapsed_time, 'seconds')
+        for user in users:
+            print(user)
+            logging.info(f"Notifying user {user['name']} of inactivity (last entry {user['last_entry_date']})")
+            send_instant_message(user['id'], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
+    # Maybe this is an unnecessary loop but it's simpler than the alternatives and I think it's probably fine for this project.
+    # I also think it's better to keep it out of the above for loop so sqlite can do it all as one optimised query
+    sqlc.update_reminded_users([user['id'] for user in users])
 
 def schedule_reminders():
-    # schedule.every().day.at("12:00").do(notify_inactive_users)
-    schedule.every(10).seconds.do(notify_inactive_users)
+    schedule.every().day.at("12:00").do(notify_inactive_users)
+    # schedule.every(10).seconds.do(notify_inactive_users)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -417,11 +412,11 @@ if __name__ == "__main__":
     validate_all_users()
     notify_inactive_users()
 
-    t1 = threading.Thread(target=schedule_reminders, args=())
-    t2 = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
+    reminders_thread = threading.Thread(target=schedule_reminders, args=())
+    app_thread = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
 
-    t1.start() 
-    t2.start()
+    reminders_thread.start() 
+    app_thread.start()
 
-    t1.join()
-    t2.join()
+    reminders_thread.join()
+    app_thread.join()
