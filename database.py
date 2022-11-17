@@ -35,8 +35,7 @@ def create_user_table():
 # SQLite3 documentation says placeholder question marks and a tuple of values should be used rather than formatted strings to prevent sql injection attacks
 # Ot's probably not important in this project but there's no reason not to do it this way
 
-# All public methods in this class assume date is being given as a date object, not a string. This means multiple conversions are needed sometimes but it
-# keeps things consistent and makes the whole program easier to maintain.
+# All public methods in this class assume date is being given as a string in the YYYY-MM-DD format. This is because the Slack block forms return dates as strings and SQLite stores dates as strings.
 
 class SQLConnection:
     def __init__(self):
@@ -106,9 +105,6 @@ class SQLConnection:
 
     # Get total minutes logged by user with given user_id
     def time_sum(self, user_id, start_date = None, end_date = None):
-        # If the user has entries in the database return their total time logged, otherwise return 0
-        start_date = start_date.strftime('%Y-%m-%d')
-        end_date = end_date.strftime('%Y-%m-%d')
         res = self.cur.execute("""SELECT SUM(minutes)
                                   FROM time_log
                                   WHERE user_id = ?
@@ -132,8 +128,8 @@ class SQLConnection:
     def entries_for_date_list(self, selected_date):
         # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
-                                FROM time_log tl
-                                INNER JOIN user_names u
-                                ON tl.user_id=u.user_id
-                                WHERE tl.selected_date=? """, (selected_date,))
+                                  FROM time_log tl
+                                  INNER JOIN user_names u
+                                  ON tl.user_id=u.user_id
+                                  WHERE tl.selected_date=? """, (selected_date,))
         return(res.fetchall())
