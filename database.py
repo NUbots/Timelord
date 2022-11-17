@@ -182,3 +182,11 @@ class SQLConnection:
                                   FROM users
                                   WHERE user_id = ? """, (user_id,))
         return res.fetchone()[0]
+
+    def remove_deactivated_users(self, active_users):
+        self.cur.execute(f"""DELETE FROM users
+                             WHERE user_id NOT IN ({','.join('?'*len(active_users))})""", active_users)
+
+    def remove_user(self, user_id):
+        self.cur.execute("""DELETE FROM users
+                            WHERE user_id = ? """, (user_id,))
