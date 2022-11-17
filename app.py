@@ -63,11 +63,11 @@ def submit_timelog_form(ack, respond, body, logger):
         if not (select_date and time_input and summary):
             raise ValueError("Missing required field")
         
-        time_list = re.findall(r'\d+', time_input) # List with two ints
+        time_inputs = re.findall(r'\d+', time_input) # List with two ints
 
         if (len(summary) > 70):
             raise ValueError("Summary must be under 70 characters")
-        if not (all(i.isdigit() for i in time_list) and len(time_list) == 2):
+        if not (all(time_input.isdigit() for time_input in time_inputs) and len(time_inputs) == 2):
             raise ValueError("Time logged field must contain two numbers seperated by some characters (e.g. 3h 25m)")
 
     except ValueError as e:
@@ -75,11 +75,11 @@ def submit_timelog_form(ack, respond, body, logger):
         logger.warning(e)
         return
 
-    minutes = int(time_list[0])*60 + int(time_list[1])    # user input (hours and minutes) stored as minutes only
-    logger.info(f"New log entry of {time_list[0]} hours and {time_list[1]} minutes for {selected_date} by {user_id}")
+    minutes = int(time_inputs[0])*60 + int(time_inputs[1])    # user input (hours and minutes) stored as minutes only
+    logger.info(f"New log entry of {time_inputs[0]} hours and {time_inputs[1]} minutes for {selected_date} by {user_id}")
     sqlc = database.SQLConnection()
     sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
-    respond(f"Time logged: {time_list[0]} hours and {time_list[1]} minutes for date {selected_date}.")
+    respond(f"Time logged: {time_inputs[0]} hours and {time_inputs[1]} minutes for date {selected_date}.")
 
 
 @app.command("/gethours")
@@ -101,9 +101,6 @@ def get_logged_hours(ack, body, respond, logger):
         if not (users and start_date and end_date):
             raise ValueError("Missing required field")
 
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
-
     except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
         logger.warning(e)
@@ -112,11 +109,11 @@ def get_logged_hours(ack, body, respond, logger):
     sqlc = database.SQLConnection()
     output = ""
     # Add the time logged by each user to the output
-    for i in users:
-        name = user_name(i)
-        user_time = sqlc.time_sum(i, start_date, end_date)
+    for user in users:
+        name = user_name(user)
+        user_time = sqlc.time_sum(user, start_date, end_date)
         if (user_time > 0):
-            output += f"*{name}*: {int(user_time/60)} hours and {int(user_time%60)} minutes\n"
+            output += f"*{name}*: {user_time//60} hours and {user_time%60} minutes\n"
         else:
             output += f"*{name}* has no logged hours\n"
     respond(output)
@@ -154,9 +151,9 @@ def get_logged_hours(ack, body, respond, logger):
         output += f"\n\n\n*{user_name(user)}*"
         entries = sqlc.given_user_entries_list(user, num_entries)
         if entries:
-            for i in entries:
-                output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
-                output += f"_{i[3]}_" if i[3] else "No summary given"
+            for entry in entries:
+                output += f"\n\n  •  {entry[0]} / {(entry[1]//60):2} hours and {(entry[1]%60):2} minutes / Submitted {entry[2]} / "
+                output += f"_{entry[3]}_" if entry[3] else "No summary given"
         else:
             output += "\n\n  •  No entries"
     respond(output)
@@ -187,11 +184,11 @@ def get_date_overview(ack, body, respond, logger):
     entries = sqlc.entries_for_date_list(selected_date)
     output = f"*Overview for {selected_date}*"
     if entries:
-        for i in entries:
-            name = i[0]
-            if i[1] != "": name += " ("+i[1]+")"
-            output += f"\n\n  •  {name} / {int(i[2]/60):2} hours and {i[2]%60:2} minutes / "
-            output += f"_{i[3]}_" if i[3] else "No summary given"
+        for entry in entries:
+            name = entry[0]
+            if entry[1] != "": name += " ("+entry[1]+")"
+            output += f"\n\n  •  {name} / {(entry[2]//60):2} hours and {(entry[2]%60):2} minutes / "
+            output += f"_{entry[3]}_" if entry[3] else "No summary given"
     else:
         output += "\n\n  •  No entries"
     respond(output)
@@ -221,20 +218,20 @@ def leaderboard_response(ack, body, respond, logger, command):
         return
 
     sqlc = database.SQLConnection()
-    contributions = sqlc.leaderboard(start_date, end_date)
+    contributors = sqlc.leaderboard(start_date, end_date)
     
     # Doing this means we are converting from date object to string, to date object, and then back to string
     # I still think this is the best approach because it is clearer and easier to read than a string manipulation
     au_start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%d/%m/%y")
     au_end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%d/%m/%y")
 
-    if contributions:
+    if contributors:
         output = f"*All contributors between {au_start_date} and {au_end_date} ranked by hours logged*\n"
-        for i in contributions:
+        for contributor in contributors:
+            name = contributor[0]
             # Add custom display name if applicable
-            name = i[0]
-            if i[1] != "": name += " ("+i[1]+")"
-            output += f"{name}: {int(i[2]/60)} hours and {int(i[2]%60)} minutes\n"
+            if contributor[1] != "": name += f" ({contributor[1]})"
+            output += f"{name}: {(contributor[2]//60)} hours and {contributor[2]%60} minutes\n"
         respond(output)
     else:
         respond(f"No hours logged between {au_start_date} and {au_end_date}!")
@@ -280,16 +277,17 @@ def user_entries(ack, respond, body, command, logger):
     sqlc = database.SQLConnection()
     entries = sqlc.given_user_entries_list(user_id, num_entries)
     today = datetime.today()
-    yearly_minutes = sqlc.time_sum(user_id, today - timedelta(days=365), today)
-    weekly_minutes = sqlc.time_sum(user_id, today - timedelta(days=today.weekday()), today)
+    yearly_minutes = sqlc.time_sum(user_id, (today - timedelta(days=365)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+    weekly_minutes = sqlc.time_sum(user_id, (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 
-    output = f"\n*Hours logged in the last 365 days*: {int(yearly_minutes/60)} hours and {yearly_minutes%60} minutes"
-    output += f"\n*Hours logged this week:* {int(weekly_minutes/60)} hours and {weekly_minutes%60} minutes"
+    output = f"\n*Hours logged in the last 365 days*: {yearly_minutes//60} hours and {yearly_minutes%60} minutes"
+    output += f"\n*Hours logged this week:* {weekly_minutes//60} hours and {weekly_minutes%60} minutes"
     
     if entries:
-        for i in entries:
-            output += f"\n\n  •  {i[0]} / {int(i[1]/60):2} hours and {i[1]%60:2} minutes / Submitted {i[2]} / "
-            output += f"_{i[3]}_" if i[3] else "No summary given"
+        for entry in entries:
+            # restricting hours and minutes to 2 characters makes the list look nicer
+            output += f"\n\n  •  {entry[0]} / {(entry[1]//60):2} hours and {(entry[1]%60):2} minutes / Submitted {entry[2]} / "
+            output += f"_{entry[3]}_" if entry[3] else "No summary given"
     else:
         output += "\n\n  •  No entries"
     respond(output)
@@ -323,11 +321,11 @@ def log_database(ack, body, respond, command, logger):
 
         output = f"*Last {num_entries} entries from all users*"
         if entries:
-            for i in entries:
-                name = i[0]
-                if i[1] != "": name += " ("+i[1]+")"
-                output += f"\n\n  •  {name} / {i[2]} / {int(i[3]/60):2} hours and {i[3]%60:2} minutes / Submitted {i[4]} / "
-                output += f"_{i[5]}_" if i[5] else "No summary given"
+            for entry in entries:
+                name = entry[0]
+                if entry[1] != "": name += f" {(entry[1])}"
+                output += f"\n\n  •  {name} / {entry[2]} / {(entry[3]//60):2} hours and {(entry[3]%60):2} minutes / Submitted {entry[4]} / "
+                output += f"_{entry[5]}_" if entry[5] else "No summary given"
         else:
             output += "\n\n  •  No entries"
 
