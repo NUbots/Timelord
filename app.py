@@ -52,6 +52,7 @@ def time_log(ack, respond, command):
 # Form response: confirmation of hours logged
 @app.action("timelog_response")
 def submit_timelog_form(ack, respond, body, logger):
+    st = time.time()
     ack()
 
     try:
@@ -81,6 +82,10 @@ def submit_timelog_form(ack, respond, body, logger):
     sqlc = database.SQLConnection()
     sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
     respond(f"Time logged: {time_list[0]} hours and {time_list[1]} minutes for date {selected_date}.")
+    
+    et = time.time()
+    elapsed_time = et - st
+    print('Execution time:', elapsed_time, 'seconds')
 
 
 @app.command("/gethours")
@@ -383,6 +388,7 @@ def handle_some_action(ack, body, logger):
 
 ################################### Startup and related functions ###################################
 
+st = time.time()
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
@@ -390,12 +396,17 @@ def notify_inactive_users():
         for i in users:
             logging.info(f"Notifying {i[1]} of inactivity")
             send_instant_message(i[0], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
+            sqlc.update_reminded_users(users)
+et = time.time()
+elapsed_time = et - st
+print('Execution time:', elapsed_time, 'seconds')
 
 def schedule_reminders():
-    schedule.every().day.at("16:28").do(notify_inactive_users)
+    # schedule.every().day.at("12:00").do(notify_inactive_users)
+    schedule.every(10).seconds.do(notify_inactive_users)
     while True:
         schedule.run_pending()
-        time.sleep(60)
+        time.sleep(1)
 
 def start_app(app, token):
     SocketModeHandler(app, token).start()
@@ -404,6 +415,7 @@ if __name__ == "__main__":
     database.create_log_table()
     database.create_user_table()
     validate_all_users()
+    notify_inactive_users()
 
     t1 = threading.Thread(target=schedule_reminders, args=())
     t2 = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
