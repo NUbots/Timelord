@@ -82,7 +82,7 @@ class SQLConnection:
             self.cur.execute("""UPDATE users 
                                 SET reminders = true
                                 WHERE user_id = ? """, (user_id,))
-        entry_num = 1 if not entry_num else entry_num + 1
+        else: entry_num += 1
         
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?,?)", (entry_num, user_id, today, selected_date, minutes, summary))
 
