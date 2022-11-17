@@ -153,7 +153,7 @@ class SQLConnection:
 
     def inactive_users(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
-        self.cur.row_factory = lambda cursor, row: {'id': row[0], 'name': row[1], 'last_entry': row[2]}
+        self.cur.row_factory = lambda cursor, row: {'id': row[0], 'name': row[1], 'last_entry_date': row[2]}
         res = self.cur.execute("""SELECT u.user_id, u.name, MAX(tl.selected_date) AS last_entry_date
                                   FROM users u
                                   INNER JOIN time_log tl

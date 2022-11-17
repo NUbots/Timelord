@@ -392,13 +392,11 @@ def notify_inactive_users():
             print(user)
             logging.info(f"Notifying user {user['name']} of inactivity (last entry {user['last_entry_date']})")
             send_instant_message(user['id'], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
-    # Maybe this is an unnecessary loop but it's simpler than the alternatives and I think it's probably fine for this project.
-    # I also think it's better to keep it out of the above for loop so sqlite can do it all as one optimised query
+    # Maybe this is an unnecessary extra loop but it's simpler than the alternatives and I think it's probably fine for this project.
     sqlc.update_reminded_users([user['id'] for user in users])
 
 def schedule_reminders():
     schedule.every().day.at("12:00").do(notify_inactive_users)
-    # schedule.every(10).seconds.do(notify_inactive_users)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -410,7 +408,6 @@ if __name__ == "__main__":
     database.create_log_table()
     database.create_user_table()
     validate_all_users()
-    notify_inactive_users()
 
     reminders_thread = threading.Thread(target=schedule_reminders, args=())
     app_thread = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
