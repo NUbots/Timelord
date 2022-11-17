@@ -26,7 +26,8 @@ def create_user_table():
                         user_id TEXT NOT NULL,
                         name TEXT NOT NULL,
                         display_name TEXT,
-                        reminders BOOL DEFAULT false NOT NULL,
+                        reminders_enabled BOOL DEFAULT false NOT NULL,
+                        last_reminded date default NULL,
 
                         PRIMARY KEY (user_id)) """)
 
@@ -75,13 +76,18 @@ class SQLConnection:
                                   FROM time_log
                                   WHERE user_id = ? """, (user_id,))
         entry_num = res.fetchone()[0]
+        
         # Enable reminders and set entry number to 1 if this is the first entry
+        user_updates = "SET reminders_enabled = true"
         if not entry_num:
             entry_num = 1
-            self.cur.execute("""UPDATE users 
-                                SET reminders = true
-                                WHERE user_id = ? """, (user_id,))
-        else: entry_num += 1
+            user_updates += ", reminded_since_last_entry = false"
+        else:
+            entry_num += 1
+
+        self.cur.execute(f"""UPDATE users
+                            {user_updates}
+                            WHERE user_id = ? """, (user_id,))
         
         self.cur.execute("INSERT INTO time_log VALUES (?,?,?,?,?,?)", (entry_num, user_id, today, selected_date, minutes, summary))
 
@@ -104,10 +110,10 @@ class SQLConnection:
     # Get the last n entries by user
     def given_user_entries_list(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT selected_date, minutes, entry_date, summary
-                                FROM time_log 
-                                WHERE user_id = ?
-                                ORDER BY entry_num DESC
-                                LIMIT ? """, (user_id, num_entries))
+                                  FROM time_log 
+                                  WHERE user_id = ?
+                                  ORDER BY entry_num DESC
+                                  LIMIT ? """, (user_id, num_entries))
         return(res.fetchall())
 
     # Get total minutes logged by user with given user_id
@@ -143,22 +149,40 @@ class SQLConnection:
 
     def inactive_users(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
-        res = self.cur.execute("""SELECT u.user_id, u.name, MAX(selected_date)
+        self.cur.row_factory = lambda cursor, row: {'id': row[0], 'name': row[1], 'last_entry_date': row[2]}
+        res = self.cur.execute("""SELECT u.user_id, u.name, MAX(tl.selected_date) AS last_entry_date
                                   FROM users u
                                   INNER JOIN time_log tl
                                   ON u.user_id=tl.user_id
-                                  WHERE u.reminders = true
+                                  WHERE u.reminders_enabled = true
                                   AND ? > (SELECT MAX(selected_date)
-                                      FROM time_log
-                                      WHERE user_id = u.user_id)
-                                  GROUP BY u.user_id, u.name""", (last_week,))
+                                  FROM time_log
+                                  WHERE user_id = u.user_id)
+                                  AND (? > u.last_reminded
+                                  OR u.last_reminded IS NULL)
+                                  GROUP BY u.user_id, u.name, u.last_reminded""", (last_week, last_week))
         return(res.fetchall())
+
+    def update_reminded_users(self, users):
+        args = [date.today()]+users
+        print(args)
+        self.cur.execute(f"""UPDATE users
+                             SET last_reminded = ?
+                             WHERE user_id IN ({','.join('?'*len(users))})""", args)
 
     def toggle_reminders(self, user_id):
         self.cur.execute("""UPDATE users 
-                            SET reminders = NOT reminders
+                            SET reminders_enabled = NOT reminders_enabled
                             WHERE user_id = ? """, (user_id,))
-        res = self.cur.execute("""SELECT reminders
+        res = self.cur.execute("""SELECT reminders_enabled
                                   FROM users
                                   WHERE user_id = ? """, (user_id,))
         return res.fetchone()[0]
+
+    def remove_deactivated_users(self, active_users):
+        self.cur.execute(f"""DELETE FROM users
+                             WHERE user_id NOT IN ({','.join('?'*len(active_users))})""", active_users)
+
+    def remove_user(self, user_id):
+        self.cur.execute("""DELETE FROM users
+                            WHERE user_id = ? """, (user_id,))

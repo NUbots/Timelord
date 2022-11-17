@@ -1,4 +1,5 @@
-import os, re, logging, blocks, database
+import os, re, logging, time, threading, schedule
+import blocks, database
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
@@ -34,11 +35,19 @@ def is_admin(user_id):
     return(user_info["user"]["is_admin"])
 
 # Check all usernames and custom display names in the database against info retrieved from slack web client
+# This is only to catch missed changes (if the bot was offline). Usually changes should be caught in real time by the event listener.
 def validate_all_users():
-    user_list = slack_web_client.users_list()
-    sqlc = database.SQLConnection()
-    for user in user_list["members"]:
-        sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
+    web_query = slack_web_client.users_list()
+    if web_query["ok"]:
+        # USLACKBOT is the slack api. It doesn't have is_bot but it does have this unique user id.
+        active_users = [user for user in web_query["members"] if (not user["deleted"] and not user["is_bot"] and not user["is_app_user"] and not user["id"] == "USLACKBOT")]
+        sqlc = database.SQLConnection()
+        for user in active_users:
+            sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
+        # If users have left the workspace their logs should remain but they should be removed from the active user list
+        sqlc.remove_deactivated_users([user["id"] for user in active_users])
+    else:
+        logging.error(f"Error retrieving user list from Slack: {web_query['error']}")
 
 ################################### Commands with forms ###################################
 
@@ -83,7 +92,7 @@ def submit_timelog_form(ack, respond, body, logger):
 
 
 @app.command("/gethours")
-def get_user_hours_form(ack, respond, body, command):
+def get_user_hours_form(ack, respond, body):
     ack()
     if(is_admin(body['user_id'])):
         respond(blocks=blocks.gethours_form())
@@ -348,15 +357,21 @@ def toggle_reminders(ack, respond, body):
 @app.event("user_change")
 def update_user_info(event, logger):
     sqlc = database.SQLConnection()
-    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"], event["user"]["profile"]["display_name"])
-    logger.info("Updated name for " + event["user"]["profile"]["real_name"])
+    user = event["user"]
+    if user["deleted"]:
+        sqlc.remove_user(user["id"])
+        logger.info(f"Removed user {user['profile']['real_name']} from active users list")
+    else:
+        sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
+        logger.info(f"Updated name for {user['profile']['real_name']}")
 
 # Update users real name and custom display name in database when a new user joins the slack workspace
 @app.event("team_join")
 def add_user(event, logger):
     sqlc = database.SQLConnection()
-    sqlc.validate_user(event["user"]["id"], event["user"]["profile"]["real_name"], event["user"]["profile"]["display_name"])
-    logger.info("New user: " + event["user"]["profile"]["real_name"])
+    user = event["user"]
+    sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
+    logger.info("New user: " + user["profile"]["real_name"])
 
 # Handle irrelevant messages so they don't show up in logs
 @app.event("message")
@@ -378,21 +393,37 @@ def handle_some_action(ack, body, logger):
     ack()
     logger.debug(body)
 
+################################### Startup and related functions ###################################
+
 def notify_inactive_users():
     sqlc = database.SQLConnection()
     users = sqlc.inactive_users()
     if users:
-        for i in users:
-            logging.info(f"Notifying {i[1]} of inactivity")
-            send_instant_message(i[0], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
+        for user in users:
+            logging.info(f"Notifying user {user['name']} of inactivity (last entry {user['last_entry_date']})")
+            send_instant_message(user['id'], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
+    # Maybe this is an unnecessary extra loop but it's simpler than the alternatives and I think it's probably fine for this project.
+    sqlc.update_reminded_users([user['id'] for user in users])
+
+def schedule_reminders():
+    schedule.every().day.at("12:00").do(notify_inactive_users)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+def start_app(app, token):
+    SocketModeHandler(app, token).start()
 
 if __name__ == "__main__":
-    # Create tables
     database.create_log_table()
     database.create_user_table()
-    # Check all users in workspace against users in database
     validate_all_users()
-    # Open a WebSocket connection with Slack
-    sqlc = database.SQLConnection()
-    notify_inactive_users()
-    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+
+    reminders_thread = threading.Thread(target=schedule_reminders, args=())
+    app_thread = threading.Thread(target=start_app, args=(app, os.environ["SLACK_APP_TOKEN"]))
+
+    reminders_thread.start() 
+    app_thread.start()
+
+    reminders_thread.join()
+    app_thread.join()
