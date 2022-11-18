@@ -234,7 +234,7 @@ def leaderboard_response(ack, body, respond, logger, command):
         for contributor in contributors:
             name = contributor['name']
             # Add custom display name if applicable
-            if contributor[['display_name']] != "": name += f" ({contributor[['display_name']]})"
+            if contributor['display_name'] != "": name += f" ({contributor['display_name']})"
             output += f"{name}: {(contributor['minutes']//60)} hours and {contributor['minutes']%60} minutes\n"
         respond(output)
     else:
