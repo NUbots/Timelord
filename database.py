@@ -42,6 +42,7 @@ class SQLConnection:
         # Open SQL connection
         self.con = sqlite3.connect(db_file)
         self.cur = self.con.cursor()
+        self.cur.row_factory = sqlite3.Row
 
     def __del__(self):
         # Close SQL connection (saving changes to file)
