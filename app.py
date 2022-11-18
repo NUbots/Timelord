@@ -40,12 +40,13 @@ def validate_all_users():
     web_query = slack_web_client.users_list()
     if web_query["ok"]:
         # USLACKBOT is the slack api. It doesn't have is_bot but it does have this unique user id.
-        active_users = [user for user in web_query["members"] if (not user["deleted"] and not user["is_bot"] and not user["is_app_user"] and not user["id"] == "USLACKBOT")]
+        users = web_query["members"]
         sqlc = database.SQLConnection()
-        for user in active_users:
-            sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
-        # If users have left the workspace their logs should remain but their user ids should be flagged as deactivated
-        sqlc.deactivate_inactive_users([user["id"] for user in active_users])
+        for user in users:
+            if (not user["deleted"] and not user["is_bot"] and not user["is_app_user"] and not user["id"] == "USLACKBOT"):
+                active = True
+            else: active = False
+            sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"], active)
     else:
         logging.error(f"Error retrieving user list from Slack: {web_query['error']}")
 
@@ -362,7 +363,7 @@ def update_user_info(event, logger):
         logger.info(f"Removed user {user['profile']['real_name']} from active users list")
     else:
         sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
-        logger.info(f"Updated name for {user['profile']['real_name']}")
+        logger.info(f"Updated user info for {user['profile']['real_name']}")
 
 # Add users to the database when they join the workspace
 @app.event("team_join")
@@ -406,6 +407,7 @@ def notify_inactive_users():
 
 def schedule_reminders():
     schedule.every().day.at("12:00").do(notify_inactive_users)
+    
     while True:
         schedule.run_pending()
         time.sleep(60)

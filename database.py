@@ -54,10 +54,10 @@ class SQLConnection:
         self.con.close()
 
     # Validate user info from slack client against internal user entry
-    def validate_user(self, user_id, name, display_name):
-        self.cur.execute("""INSERT INTO users (user_id, name, display_name)
-                            VALUES (?, ?, ?)
-                            ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=? """, (user_id, name, display_name, name, display_name))
+    def validate_user(self, user_id, name, display_name, is_active):
+        self.cur.execute("""INSERT INTO users (user_id, name, display_name, active)
+                            VALUES (?, ?, ?, ?)
+                            ON CONFLICT(user_id) DO UPDATE SET name=?, display_name=?, active=?""", (user_id, name, display_name, is_active, name, display_name, is_active))
 
     # Get user's full name and custom display name from database
     def user_name(self, user_id):
@@ -181,15 +181,3 @@ class SQLConnection:
                                   FROM users
                                   WHERE user_id = ? """, (user_id,))
         return res.fetchone()[0]
-
-    # Active_users should be a list of user ids
-    def deactivate_inactive_users(self, active_users):
-        all_users = self.cur.execute("""SELECT user_id FROM users""").fetchall()
-        inactive_users = [user["user_id"] for user in all_users if user["user_id"] not in active_users]
-        for user in inactive_users:
-            self.deactivate_user(user)
-
-    def deactivate_user(self, user_id):
-        self.cur.execute("""UPDATE users
-                            SET active = FALSE
-                            WHERE user_id = ? """, (user_id,))
