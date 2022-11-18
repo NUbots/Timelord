@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import date, timedelta
 from tabulate import tabulate
+import time
 
 db_file = "timelord.db"
 
@@ -181,12 +182,12 @@ class SQLConnection:
                                   WHERE user_id = ? """, (user_id,))
         return res.fetchone()[0]
 
-    def update_active_users(self, active_users):
-        self.cur.execute(f"""UPDATE users
-                             SET active = (CASE
-                                WHEN user_id NOT IN ({','.join('?'*len(active_users))}) THEN FALSE
-                                ELSE TRUE 
-                             END)""", active_users)
+    # Active_users should be a list of user ids
+    def deactivate_inactive_users(self, active_users):
+        all_users = self.cur.execute("""SELECT user_id FROM users""").fetchall()
+        inactive_users = [user["user_id"] for user in all_users if user["user_id"] not in active_users]
+        for user in inactive_users:
+            self.deactivate_user(user)
 
     def deactivate_user(self, user_id):
         self.cur.execute("""UPDATE users

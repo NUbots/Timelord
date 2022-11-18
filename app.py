@@ -44,8 +44,8 @@ def validate_all_users():
         sqlc = database.SQLConnection()
         for user in active_users:
             sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
-        # If users have left the workspace their logs should remain but they should be removed from the active user list
-        sqlc.update_active_users([user["id"] for user in active_users])
+        # If users have left the workspace their logs should remain but their user ids should be flagged as deactivated
+        sqlc.deactivate_inactive_users([user["id"] for user in active_users])
     else:
         logging.error(f"Error retrieving user list from Slack: {web_query['error']}")
 
@@ -400,15 +400,15 @@ def notify_inactive_users():
     if users:
         for user in users:
             logging.info(f"Notifying user {user['name']} of inactivity (last entry {user['last_entry_date']})")
-            send_instant_message(user['id'], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
+            send_instant_message(user['user_id'], "You have not logged any hours in the last 7 days. *Please remember to log your hours!* If you don't want to receive these reminders, you can do /disablereminders")
     # Maybe this is an unnecessary extra loop but it's simpler than the alternatives and I think it's probably fine for this project.
-    sqlc.update_reminded_users([user['id'] for user in users])
+    sqlc.update_reminded_users([user['user_id'] for user in users])
 
 def schedule_reminders():
     schedule.every().day.at("12:00").do(notify_inactive_users)
     while True:
         schedule.run_pending()
-        time.sleep(1)
+        time.sleep(60)
 
 def start_app(app, token):
     SocketModeHandler(app, token).start()
