@@ -235,7 +235,7 @@ def leaderboard_response(ack, body, respond, logger, command):
             name = contributor['name']
             # Add custom display name if applicable
             if contributor['display_name'] != "": name += f" ({contributor['display_name']})"
-            output += f"{name}: {(contributor['totalMinutes']//60)} hours and {contributor['totalMinutes']%60} minutes\n"
+            output += f"{name}: {contributor['totalMinutes']//60} hours and {contributor['totalMinutes']%60} minutes\n"
         respond(output)
     else:
         respond(f"No hours logged between {au_start_date} and {au_end_date}!")
@@ -328,7 +328,7 @@ def log_database(ack, body, respond, command, logger):
         if entries:
             for entry in entries:
                 name = entry['name']
-                if entry['display_name'] != "": name += f" {(entry['display_name'])}"
+                if entry['display_name'] != "": name += f" ({entry['display_name']})"
                 output += f"\n\n  •  {name} / {entry['selected_date']} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / Submitted {entry['entry_date']} / "
                 output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
         else:
