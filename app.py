@@ -45,7 +45,7 @@ def validate_all_users():
         for user in active_users:
             sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
         # If users have left the workspace their logs should remain but they should be removed from the active user list
-        sqlc.remove_deactivated_users([user["id"] for user in active_users])
+        sqlc.update_active_users([user["id"] for user in active_users])
     else:
         logging.error(f"Error retrieving user list from Slack: {web_query['error']}")
 
@@ -66,13 +66,13 @@ def submit_timelog_form(ack, respond, body, logger):
         user_id = body['user']['id']
 
         selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
-        time_input = body['state']['values']['hours_block']['hours_input']['value'] # String
+        time_input_string = body['state']['values']['hours_block']['hours_input']['value'] # String
         summary = body['state']['values']['text_field_block']['text_input']['value']
 
-        if not (select_date and time_input and summary):
+        if not (select_date and time_input_string and summary):
             raise ValueError("Missing required field")
         
-        time_inputs = re.findall(r'\d+', time_input) # List with two ints
+        time_inputs = re.findall(r'\d+', time_input_string) # List with two ints
 
         if (len(summary) > 70):
             raise ValueError("Summary must be under 70 characters")
@@ -120,7 +120,7 @@ def get_logged_hours(ack, body, respond, logger):
     # Add the time logged by each user to the output
     for user in users:
         name = user_name(user)
-        user_time = sqlc.time_sum(user, start_date, end_date)
+        user_time = sqlc.minutes_logged_sum(user, start_date, end_date)
         if (user_time > 0):
             output += f"*{name}*: {user_time//60} hours and {user_time%60} minutes\n"
         else:
@@ -158,11 +158,11 @@ def get_logged_hours(ack, body, respond, logger):
     output = ""
     for user in users:
         output += f"\n\n\n*{user_name(user)}*"
-        entries = sqlc.given_user_entries_list(user, num_entries)
+        entries = sqlc.entries_by_given_user(user, num_entries)
         if entries:
             for entry in entries:
-                output += f"\n\n  •  {entry[0]} / {(entry[1]//60):2} hours and {(entry[1]%60):2} minutes / Submitted {entry[2]} / "
-                output += f"_{entry[3]}_" if entry[3] else "No summary given"
+                output += f"\n\n  •  {entry['selected_date']} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / Submitted {entry['entry_date']} / "
+                output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
         else:
             output += "\n\n  •  No entries"
     respond(output)
@@ -190,14 +190,14 @@ def get_date_overview(ack, body, respond, logger):
         return
 
     sqlc = database.SQLConnection()
-    entries = sqlc.entries_for_date_list(selected_date)
+    entries = sqlc.entries_for_date(selected_date)
     output = f"*Overview for {selected_date}*"
     if entries:
         for entry in entries:
-            name = entry[0]
-            if entry[1] != "": name += " ("+entry[1]+")"
-            output += f"\n\n  •  {name} / {(entry[2]//60):2} hours and {(entry[2]%60):2} minutes / "
-            output += f"_{entry[3]}_" if entry[3] else "No summary given"
+            name = entry['name']
+            if entry['display_name'] != "": name += f" ({entry['display name']})"
+            output += f"\n\n  •  {name} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / "
+            output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
     else:
         output += "\n\n  •  No entries"
     respond(output)
@@ -237,10 +237,10 @@ def leaderboard_response(ack, body, respond, logger, command):
     if contributors:
         output = f"*All contributors between {au_start_date} and {au_end_date} ranked by hours logged*\n"
         for contributor in contributors:
-            name = contributor[0]
+            name = contributor['name']
             # Add custom display name if applicable
-            if contributor[1] != "": name += f" ({contributor[1]})"
-            output += f"{name}: {(contributor[2]//60)} hours and {contributor[2]%60} minutes\n"
+            if contributor['display_name'] != "": name += f" ({contributor['display_name']})"
+            output += f"{name}: {(contributor['minutes']//60)} hours and {contributor['minutes']%60} minutes\n"
         respond(output)
     else:
         respond(f"No hours logged between {au_start_date} and {au_end_date}!")
@@ -284,10 +284,10 @@ def user_entries(ack, respond, body, command, logger):
         return
 
     sqlc = database.SQLConnection()
-    entries = sqlc.given_user_entries_list(user_id, num_entries)
+    entries = sqlc.entries_by_given_user(user_id, num_entries)
     today = datetime.today()
-    yearly_minutes = sqlc.time_sum(user_id, (today - timedelta(days=365)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
-    weekly_minutes = sqlc.time_sum(user_id, (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+    yearly_minutes = sqlc.minutes_logged_sum(user_id, (today - timedelta(days=365)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+    weekly_minutes = sqlc.minutes_logged_sum(user_id, (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 
     output = f"\n*Hours logged in the last 365 days*: {yearly_minutes//60} hours and {yearly_minutes%60} minutes"
     output += f"\n*Hours logged this week:* {weekly_minutes//60} hours and {weekly_minutes%60} minutes"
@@ -295,8 +295,8 @@ def user_entries(ack, respond, body, command, logger):
     if entries:
         for entry in entries:
             # restricting hours and minutes to 2 characters makes the list look nicer
-            output += f"\n\n  •  {entry[0]} / {(entry[1]//60):2} hours and {(entry[1]%60):2} minutes / Submitted {entry[2]} / "
-            output += f"_{entry[3]}_" if entry[3] else "No summary given"
+            output += f"\n\n  •  {entry['selected_date']} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / Submitted {entry['entry_date']} / "
+            output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
     else:
         output += "\n\n  •  No entries"
     respond(output)
@@ -326,15 +326,15 @@ def log_database(ack, body, respond, command, logger):
             return
 
         sqlc = database.SQLConnection()
-        entries = sqlc.all_user_entries_list(num_entries)
+        entries = sqlc.entries_by_all_users(num_entries)
 
         output = f"*Last {num_entries} entries from all users*"
         if entries:
             for entry in entries:
-                name = entry[0]
-                if entry[1] != "": name += f" {(entry[1])}"
-                output += f"\n\n  •  {name} / {entry[2]} / {(entry[3]//60):2} hours and {(entry[3]%60):2} minutes / Submitted {entry[4]} / "
-                output += f"_{entry[5]}_" if entry[5] else "No summary given"
+                name = entry['name']
+                if entry[1] != "": name += f" {(entry['display_name'])}"
+                output += f"\n\n  •  {name} / {entry['selected_date']} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / Submitted {entry['entry_date']} / "
+                output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
         else:
             output += "\n\n  •  No entries"
 
@@ -359,7 +359,7 @@ def update_user_info(event, logger):
     sqlc = database.SQLConnection()
     user = event["user"]
     if user["deleted"]:
-        sqlc.remove_user(user["id"])
+        sqlc.deactivate_user(user["id"])
         logger.info(f"Removed user {user['profile']['real_name']} from active users list")
     else:
         sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])

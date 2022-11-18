@@ -28,6 +28,7 @@ def create_user_table():
                         display_name TEXT,
                         reminders_enabled BOOL DEFAULT false NOT NULL,
                         last_reminded date default NULL,
+                        active bool NOT NULL DEFAULT false,
 
                         PRIMARY KEY (user_id)) """)
 
@@ -44,6 +45,7 @@ class SQLConnection:
         # Open SQL connection
         self.con = sqlite3.connect(db_file)
         self.cur = self.con.cursor()
+        self.cur.row_factory = sqlite3.Row
 
     def __del__(self):
         # Close SQL connection (saving changes to file)
@@ -65,7 +67,7 @@ class SQLConnection:
         user = res.fetchone()
         name = user[0]
         # Add custom display name if applicable
-        if user[1] != "": name += " ("+user[1]+")"
+        if user[1] != "": name += f" {(user[1])}"
         return(name)
 
     def insert_timelog_entry(self, user_id, selected_date, minutes, summary):
@@ -99,7 +101,7 @@ class SQLConnection:
                                 ORDER BY entry_num DESC LIMIT 1) """, (user_id,))
 
     # Get last entries by all users
-    def all_user_entries_list(self, num_entries):
+    def entries_by_all_users(self, num_entries):
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.selected_date, tl.minutes, tl.entry_date, tl.summary
                                   FROM time_log tl
                                   INNER JOIN users u
@@ -108,7 +110,7 @@ class SQLConnection:
         return(res.fetchall())
 
     # Get the last n entries by user
-    def given_user_entries_list(self, user_id, num_entries = 10):
+    def entries_by_given_user(self, user_id, num_entries = 10):
         res = self.cur.execute("""SELECT selected_date, minutes, entry_date, summary
                                   FROM time_log 
                                   WHERE user_id = ?
@@ -117,7 +119,7 @@ class SQLConnection:
         return(res.fetchall())
 
     # Get total minutes logged by user with given user_id
-    def time_sum(self, user_id, start_date = None, end_date = None):
+    def minutes_logged_sum(self, user_id, start_date = None, end_date = None):
         res = self.cur.execute("""SELECT SUM(minutes)
                                   FROM time_log
                                   WHERE user_id = ?
@@ -138,7 +140,7 @@ class SQLConnection:
                                   ORDER BY totalMinutes DESC """, (start_date, end_date))
         return(res.fetchall())
 
-    def entries_for_date_list(self, selected_date):
+    def entries_for_date(self, selected_date):
         # Get all entries by all users
         res = self.cur.execute("""SELECT u.name, u.display_name, tl.minutes, tl.summary
                                   FROM time_log tl
@@ -149,7 +151,6 @@ class SQLConnection:
 
     def inactive_users(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
-        self.cur.row_factory = lambda cursor, row: {'id': row[0], 'name': row[1], 'last_entry_date': row[2]}
         res = self.cur.execute("""SELECT u.user_id, u.name, MAX(tl.selected_date) AS last_entry_date
                                   FROM users u
                                   INNER JOIN time_log tl
@@ -179,10 +180,14 @@ class SQLConnection:
                                   WHERE user_id = ? """, (user_id,))
         return res.fetchone()[0]
 
-    def remove_deactivated_users(self, active_users):
-        self.cur.execute(f"""DELETE FROM users
-                             WHERE user_id NOT IN ({','.join('?'*len(active_users))})""", active_users)
+    def update_active_users(self, active_users):
+        self.cur.execute(f"""UPDATE users
+                             SET active = (CASE
+                                WHEN user_id NOT IN ({','.join('?'*len(active_users))}) THEN FALSE
+                                ELSE TRUE 
+                             END)""", active_users)
 
-    def remove_user(self, user_id):
-        self.cur.execute("""DELETE FROM users
+    def deactivate_user(self, user_id):
+        self.cur.execute("""UPDATE users
+                            SET active = FALSE
                             WHERE user_id = ? """, (user_id,))
