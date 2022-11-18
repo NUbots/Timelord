@@ -66,13 +66,13 @@ def submit_timelog_form(ack, respond, body, logger):
         user_id = body['user']['id']
 
         selected_date = body['state']['values']['date_select_block']['date_select_input']['selected_date']
-        time_input_string = body['state']['values']['hours_block']['hours_input']['value'] # String
+        time_input_text = body['state']['values']['hours_block']['hours_input']['value']
         summary = body['state']['values']['text_field_block']['text_input']['value']
 
-        if not (select_date and time_input_string and summary):
+        if not (select_date and time_input_text and summary):
             raise ValueError("Missing required field")
         
-        time_inputs = re.findall(r'\d+', time_input_string) # List with two ints
+        time_inputs = re.findall(r'\d+', time_input_text) # List with two integers: hours and minutes
 
         if (len(summary) > 70):
             raise ValueError("Summary must be under 70 characters")
@@ -84,7 +84,7 @@ def submit_timelog_form(ack, respond, body, logger):
         logger.warning(e)
         return
 
-    minutes = int(time_inputs[0])*60 + int(time_inputs[1])    # user input (hours and minutes) stored as minutes only
+    minutes = int(time_inputs[0])*60 + int(time_inputs[1])
     logger.info(f"New log entry of {time_inputs[0]} hours and {time_inputs[1]} minutes for {selected_date} by {user_id}")
     sqlc = database.SQLConnection()
     sqlc.insert_timelog_entry(user_id, selected_date, minutes, summary)
@@ -195,7 +195,7 @@ def get_date_overview(ack, body, respond, logger):
     if entries:
         for entry in entries:
             name = entry['name']
-            if entry['display_name'] != "": name += f" ({entry['display name']})"
+            if entry['display_name'] != "": name += f" ({entry['display_name']})"
             output += f"\n\n  •  {name} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / "
             output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
     else:
@@ -229,8 +229,7 @@ def leaderboard_response(ack, body, respond, logger, command):
     sqlc = database.SQLConnection()
     contributors = sqlc.leaderboard(start_date, end_date)
     
-    # Doing this means we are converting from date object to string, to date object, and then back to string
-    # I still think this is the best approach because it is clearer and easier to read than a string manipulation
+    # Convert to the australian standard date format for slack output
     au_start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%d/%m/%y")
     au_end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%d/%m/%y")
 
@@ -240,7 +239,7 @@ def leaderboard_response(ack, body, respond, logger, command):
             name = contributor['name']
             # Add custom display name if applicable
             if contributor['display_name'] != "": name += f" ({contributor['display_name']})"
-            output += f"{name}: {(contributor['minutes']//60)} hours and {contributor['minutes']%60} minutes\n"
+            output += f"{name}: {contributor['totalMinutes']//60} hours and {contributor['totalMinutes']%60} minutes\n"
         respond(output)
     else:
         respond(f"No hours logged between {au_start_date} and {au_end_date}!")
@@ -332,7 +331,7 @@ def log_database(ack, body, respond, command, logger):
         if entries:
             for entry in entries:
                 name = entry['name']
-                if entry[1] != "": name += f" {(entry['display_name'])}"
+                if entry['display_name'] != "": name += f" ({entry['display_name']})"
                 output += f"\n\n  •  {name} / {entry['selected_date']} / {(entry['minutes']//60):2} hours and {(entry['minutes']%60):2} minutes / Submitted {entry['entry_date']} / "
                 output += f"_{entry['summary']}_" if entry['summary'] else "No summary given"
         else:
@@ -353,7 +352,7 @@ def toggle_reminders(ack, respond, body):
 
 ################################### Other events to be handled ###################################
 
-# Update users real name and custom display name in database when a user changes this info through slack
+# Update user info in the database to match slack user info
 @app.event("user_change")
 def update_user_info(event, logger):
     sqlc = database.SQLConnection()
@@ -365,7 +364,7 @@ def update_user_info(event, logger):
         sqlc.validate_user(user["id"], user["profile"]["real_name"], user["profile"]["display_name"])
         logger.info(f"Updated name for {user['profile']['real_name']}")
 
-# Update users real name and custom display name in database when a new user joins the slack workspace
+# Add users to the database when they join the workspace
 @app.event("team_join")
 def add_user(event, logger):
     sqlc = database.SQLConnection()
