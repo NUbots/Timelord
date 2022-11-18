@@ -92,6 +92,7 @@ class SQLConnection:
                                   FROM time_log tl
                                   INNER JOIN user_names u
                                   ON tl.user_id=u.user_id
+                                  ORDER BY tl.selected_date DESC, tl.entry_num DESC
                                   LIMIT ? """, (num_entries,))
         return(res.fetchall())
 
