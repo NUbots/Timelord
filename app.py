@@ -232,9 +232,9 @@ def leaderboard_response(ack, body, respond, logger, command):
     if contributors:
         output = f"*All contributors between {au_start_date} and {au_end_date} ranked by hours logged*\n"
         for contributor in contributors:
-            name = contributor[0]
+            name = contributor['name']
             # Add custom display name if applicable
-            if contributor[1] != "": name += f" ({contributor[1]})"
+            if contributor[['display_name']] != "": name += f" ({contributor[['display_name']]})"
             output += f"{name}: {(contributor['minutes']//60)} hours and {contributor['minutes']%60} minutes\n"
         respond(output)
     else:
