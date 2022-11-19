@@ -3,7 +3,7 @@ import blocks, database
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -231,8 +231,8 @@ def leaderboard_response(ack, body, respond, logger, command):
     contributors = sqlc.leaderboard(start_date, end_date)
     
     # Convert to the australian standard date format for slack output
-    au_start_date = datetime.strptime(start_date, "%Y-%m-%d").strftime("%d/%m/%y")
-    au_end_date = datetime.strptime(end_date, "%Y-%m-%d").strftime("%d/%m/%y")
+    au_start_date = date.strptime(start_date, "%Y-%m-%d").strftime("%d/%m/%y")
+    au_end_date = date.strptime(end_date, "%Y-%m-%d").strftime("%d/%m/%y")
 
     if contributors:
         output = f"*All contributors between {au_start_date} and {au_end_date} ranked by hours logged*\n"
@@ -285,7 +285,7 @@ def user_entries(ack, respond, body, command, logger):
 
     sqlc = database.SQLConnection()
     entries = sqlc.entries_by_given_user(user_id, num_entries)
-    today = datetime.today()
+    today = date.today()
     yearly_minutes = sqlc.minutes_logged_sum(user_id, (today - timedelta(days=365)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
     weekly_minutes = sqlc.minutes_logged_sum(user_id, (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 
