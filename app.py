@@ -407,6 +407,7 @@ def notify_inactive_users():
 
 def schedule_reminders():
     schedule.every().day.at("12:00").do(notify_inactive_users)
+    schedule.every().friday.at("16:00").do(database.backup)
     
     while True:
         schedule.run_pending()

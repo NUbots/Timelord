@@ -33,6 +33,13 @@ def create_user_table():
 
                         PRIMARY KEY (user_id)) """)
 
+def backup():
+    backup_name = date.today().strftime("%d-%m-%d-%Y")
+    timelord_db = sqlite3.connect(db_file)
+    backup_db = sqlite3.connect(f"backups/{backup_name}.db")
+    with backup_db:
+        timelord_db.backup(backup_db)
+
 # Dates are stored in plain text (SQLite doesn't have a specific date type). This still works and is sortable as long as
 # dates are stored in the YYYY-MM-DD format (highest to lowest weight)
 
