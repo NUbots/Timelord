@@ -395,9 +395,9 @@ def handle_some_action(ack, body, logger):
 
 ################################### Startup and related functions ###################################
 
-def notify_inactive_users():
+def remind_users_to_log_hours():
     sqlc = database.SQLConnection()
-    users = sqlc.inactive_users()
+    users = sqlc.users_to_be_reminded()
     if users:
         for user in users:
             logging.info(f"Notifying user {user['name']} of inactivity (last entry {user['last_entry_date']})")
@@ -406,7 +406,7 @@ def notify_inactive_users():
     sqlc.update_reminded_users([user['user_id'] for user in users])
 
 def schedule_reminders():
-    schedule.every().day.at("12:00").do(notify_inactive_users)
+    schedule.every().day.at("12:00").do(remind_users_to_log_hours)
     
     while True:
         schedule.run_pending()

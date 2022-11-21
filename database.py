@@ -81,10 +81,9 @@ class SQLConnection:
         entry_num = res.fetchone()[0]
         
         # Enable reminders and set entry number to 1 if this is the first entry
-        user_updates = "SET reminders_enabled = true"
         if not entry_num:
+            user_updates = "SET reminders_enabled = true"
             entry_num = 1
-            user_updates += ", reminded_since_last_entry = false"
         else:
             entry_num += 1
 
@@ -151,7 +150,7 @@ class SQLConnection:
                                   WHERE tl.selected_date=? """, (selected_date,))
         return(res.fetchall())
 
-    def inactive_users(self):
+    def users_to_be_reminded(self):
         last_week = (date.today() - timedelta(days=7)).strftime('%Y-%m-%d')
         res = self.cur.execute("""SELECT u.user_id, u.name, MAX(tl.selected_date) AS last_entry_date
                                   FROM users u
@@ -168,7 +167,6 @@ class SQLConnection:
 
     def update_reminded_users(self, users):
         args = [date.today()]+users
-        print(args)
         self.cur.execute(f"""UPDATE users
                              SET last_reminded = ?
                              WHERE user_id IN ({','.join('?'*len(users))})""", args)
