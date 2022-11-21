@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import date, timedelta
 from tabulate import tabulate
-import time
+from pathlib import Path
 
 db_file = "timelord.db"
 
@@ -34,9 +34,14 @@ def create_user_table():
                         PRIMARY KEY (user_id)) """)
 
 def backup():
-    backup_name = date.today().strftime("%d-%m-%Y")
+    today = date.today()
+    backup_name = today.strftime("%d-%b")
+    backup_year = today.strftime("%Y")
+    Path("Backups").mkdir(exist_ok=True)
+    Path(f"./Backups/{backup_year}").mkdir(exist_ok=True)
     timelord_db = sqlite3.connect(db_file)
-    backup_db = sqlite3.connect(f"backups/{backup_name}.db")
+    # e.g. ./backups/2022/21-Nov
+    backup_db = sqlite3.connect(f"./Backups/{backup_year}/{backup_name}.db")
     with backup_db:
         timelord_db.backup(backup_db)
 

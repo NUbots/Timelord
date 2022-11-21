@@ -407,6 +407,7 @@ def notify_inactive_users():
 
 def schedule_reminders():
     schedule.every().day.at("12:00").do(notify_inactive_users)
+    # Every week might be excessive and we can turn it down if necessary, but the database file is only a few kilobytes so it doesn't matter too much.
     schedule.every().friday.at("16:00").do(database.backup)
     
     while True:
