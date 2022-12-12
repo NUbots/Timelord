@@ -26,17 +26,17 @@ Run app.py to launch Timelord
 - `/help` Get this list of commands
 - `/timelog` Open a time logging form
 - `/deletelast` Delete your last entry
-- `/myentries n` Get your last n entries (defaults to 5)"""
+- `/myentries n` Get your last n entries (defaults to 5)
 
 #### Admin Commands:
 - `/timelog` Open a time logging form
 - `/deletelast` Delete your last entry
-- `/myentries n` Get your last n entries (defaults to 30)"""
+- `/myentries n` Get your last n entries (defaults to 30)
 - `/gethours` Select users and see their total hours logged
 - `/getentries` Select users and see their most recent entries
 - `/lastentries n` See the last n entries from all users in one list (defaults to 30)
 - `/leaderboard` Select a date range and rank all users by hours logged in that range
-- `/dateoverview` See all entries for a given date"""
+- `/dateoverview` See all entries for a given date
 
 ## Autostart
 Change the paths in `timelord.service` to match where you have put it, then copy `timelord.serivce` into

@@ -134,13 +134,16 @@ def get_logged_hours(ack, body, respond, logger):
     ack()
     try:
         users = body['state']['values']['user_select_block']['user_select_input']['selected_users']
-        num_entries_input = body['state']['values']['num_entries_block']['num_entries_input']['value']
+        num_entries_input_text = body['state']['values']['num_entries_block']['num_entries_input']['value']
 
-        if not (users and num_entries_input):
+        if not (users and num_entries_input_text):
             raise ValueError("Missing required field")
 
-        try: num_entries = int(re.findall(r'\d+', num_entries_input)[0])
-        except: raise ValueError("Number of entries must be an integer")
+        num_entries_input = re.findall(r'\d+', num_entries_input_text)
+        if len(num_entries_input) == 1 and num_entries_input[0].isdigit():
+            num_entries = int(num_entries_input[0])
+        else: 
+            raise ValueError("Number of entries must be a single positive integer")
     
     except ValueError as e:
         respond(f"*Invalid input, please try again!* {str(e)}.")
